@@ -15,7 +15,7 @@ export const Dologin = async (credentials: any) => {
   try {
     console.log('Logging in with credentials:', credentials);
     const response = await Axios.post('/api/auth/login/', credentials);
-    console.log('login response:', response);
+    console.log('login response:-----------', response);
     return response;
   } catch (error: any) {
     throw error?.response?.data || { message: "Login failed" };

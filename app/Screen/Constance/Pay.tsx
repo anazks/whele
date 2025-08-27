@@ -10,16 +10,38 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import RazorpayCheckout from 'react-native-razorpay';
 import { getProfile } from '../../api/Services/AuthService';
+import { createOrder, verifyPayment } from '../../api/Services/Payment';
 import { ExtractToken } from '../../api/Services/TokenExtract';
-
 const { width } = Dimensions.get('window');
 
 export default function Pay() {
   const router = useRouter();
-  const { amount, duration } = useLocalSearchParams();
+  
+  // Get all parameters passed from PayNow component
+  const { 
+    planId,
+    planName,
+    amount, 
+    currency,
+    duration, 
+    planType,
+    description 
+  } = useLocalSearchParams();
+
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  console.log('Received payment parameters:', {
+    planId,
+    planName,
+    amount,
+    currency,
+    duration,
+    planType,
+    description
+  });
 
   const checkSubscriptionStatus = (profileData) => {
     return profileData?.can_access_service || false;
@@ -36,13 +58,12 @@ export default function Pay() {
           
           setUserData({
             id: response.id,
-            name: apiResponse?.name || 'Cervice Center',
+            name: apiResponse?.name || 'Service Center',
             email: apiResponse?.email || 'contact@linjuwheel.com',
             address: apiResponse?.address || '123 Main Street, Thiruvananthapuram, Kerala',
             phone: apiResponse?.phone || '+91 9876543210',
-            shopName: apiResponse?.shopName || 'Cervice Center',
+            shopName: apiResponse?.shopName || 'Service Center',
             businessType: apiResponse?.businessType || 'Automobile Service',
-            // gstNumber: apiResponse?.gstNumber || 'GST123456789',
             is_trial_active: apiResponse?.is_trial_active || false,
             is_subscription_active: apiResponse?.is_subscription_active || false,
             can_access_service: apiResponse?.can_access_service || false
@@ -59,7 +80,6 @@ export default function Pay() {
           phone: '+91 9876543210',
           shopName: 'LINJU Wheel Service Center',
           businessType: 'Automobile Service',
-          // gstNumber: 'GST123456789',
           is_trial_active: false,
           is_subscription_active: false,
           can_access_service: false
@@ -72,47 +92,183 @@ export default function Pay() {
     fetchUserData();
   }, []);
 
-  const handlePayment = () => {
-    console.log(`Processing payment of ₹${amount} for ${duration} subscription`);
-    // Add your payment logic here
-    alert(`Payment initiated for ₹${amount} - ${duration} subscription`);
-  };
+const handlePayment = async () => {
+  try {
+    setLoading(true);
+    
+    // Validate required data before proceeding
+    if (!amount || !userData) {
+      alert('Payment details are incomplete. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    const numericAmount = parseInt(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      alert('Invalid amount. Please check the payment details.');
+      setLoading(false);
+      return;
+    }
+    
+    const paymentData = {
+      planId,
+      planName,
+      amount: numericAmount,
+      currency: currency || 'INR',
+      duration,
+      planType,
+      description,
+      userData
+    };
+    
+    console.log('Processing payment with data:', paymentData);
+    
+    // Create order first
+    const response = await createOrder(numericAmount);
+    console.log('Order creation response:---', response);
+    
+    if (!response?.data?.order_id) {
+      alert('Failed to create order. Please try again.');
+      setLoading(false);
+      return;
+    }
+    
+    // Extract order details from response
+    const { 
+      order_id, 
+      amount: orderAmount, 
+      currency: orderCurrency, 
+      key_id
+    } = response.data.data;
+    
+    // Validate order response
+    if (!order_id || !key_id) {
+      alert('Invalid order response. Please contact support.');
+      setLoading(false);
+      return;
+    }
+
+    // Clean phone number (remove any non-numeric characters except +)
+    const cleanPhone = userData.phone?.replace(/[^\d+]/g, '') || '';
+    
+    // Razorpay checkout options
+    const options = {
+      description: `${planName || 'Premium Plan'} - ${duration} month subscription`,
+      image: 'https://your-logo-url.com/logo.png', // Replace with your actual logo URL
+      order_id: order_id, // This is the most critical field
+      key: key_id, // Use the key from your backend response
+      amount: Math.round(orderAmount * 100), // Amount in paise
+      currency: orderCurrency || 'INR',
+      name: 'Wheel Alignment Service', // Your business name
+      prefill: {
+        name: userData.name || '',
+        email: userData.email || '',
+        contact: cleanPhone
+      },
+      theme: { 
+        color: '#4285f4' 
+      },
+      modal: {
+        ondismiss: () => {
+          console.log('Razorpay modal dismissed');
+          setLoading(false);
+        }
+      },
+      retry: {
+        enabled: true,
+        max_count: 3
+      }
+    };
+    
+    console.log('Opening Razorpay checkout with options:', options);
+    
+    // Open Razorpay checkout
+    const data = await RazorpayCheckout.open(options);
+    console.log('Razorpay checkout completed with data:', data);
+    
+    // Payment successful
+    if (data.razorpay_payment_id) {
+      console.log('Payment successful:', data);
+      let response = await verifyPayment(data)
+      console.log('Payment verification response:', response);
+      if(response?.data?.success == true && response.status == 200){
+        alert('Payment verified successfully!');
+         alert('Payment verified successfully!');
+        router.push('/(tabs)/Home')
+        return;
+      }else{
+        alert('Payment verification failed. Please contact support.');
+        return;
+      }
+    }
+    
+  } catch (error) {
+    console.error('Payment error:', error);
+    
+    // Handle different types of errors
+    if (error.code) {
+      switch (error.code) {
+        case 'BAD_REQUEST_ERROR':
+          alert('Invalid request. Please check payment details.');
+          break;
+        case 'GATEWAY_ERROR':
+          alert('Payment gateway error. Please try again.');
+          break;
+        case 'NETWORK_ERROR':
+          alert('Network error. Please check your connection.');
+          break;
+        case 'SERVER_ERROR':
+          alert('Server error. Please try again later.');
+          break;
+        default:
+          alert(`Payment Error: ${error.description || error.message || 'Unknown error'}`);
+      }
+    } else {
+      // Generic error handling
+      alert('Payment failed. Please try again.');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleBack = () => {
     router.back();
   };
 
   const getSubscriptionBenefits = () => {
-    if (duration === '1 Year') {
+    // Use planType or duration to determine benefits
+    if (planType === 'yearly' || duration === '12') {
       return [
         'All Premium Features',
         'Priority Support',
-        'Exclusive Content'
+        'Exclusive Content',
+        'Annual Discount Applied'
       ];
     } else {
       return [
         'All Premium Features',
-        '8 Months Free',
-        'VIP Support',
-        'Early Access',
-        'Lifetime Updates'
+        'Standard Support',
+        'Regular Updates'
       ];
     }
   };
 
   const calculateTax = () => {
-    return Math.round(parseInt(amount) * 0.18);
+    return Math.round(parseInt(amount || 0) * 0.18);
   };
 
   const calculateTotal = () => {
-    return Math.round(parseInt(amount));
+    return Math.round(parseInt(amount || 0));
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <View style={styles.loadingCard}>
-          <Text style={styles.loadingText}>Loading payment details...</Text>
+          <Text style={styles.loadingText}>
+            {userData ? 'Processing payment...' : 'Loading payment details...'}
+          </Text>
         </View>
       </View>
     );
@@ -170,11 +326,6 @@ export default function Pay() {
                     <Text style={styles.detailLabel}>Address</Text>
                     <Text style={[styles.detailValue, styles.addressText]}>{userData.address}</Text>
                   </View>
-                  
-                  {/* <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>GST Number</Text>
-                    <Text style={styles.detailValue}>{userData.gstNumber}</Text>
-                  </View> */}
                 </View>
               </View>
             </View>
@@ -185,9 +336,26 @@ export default function Pay() {
             <Text style={styles.sectionTitle}>Subscription Details</Text>
             
             <View style={styles.subscriptionHeader}>
-              <Text style={styles.subscriptionPlan}>{duration} Premium Plan</Text>
-              <Text style={styles.subscriptionAmount}>₹{amount}</Text>
+              <View style={styles.planInfo}>
+                <Text style={styles.subscriptionPlan}>
+                  {planName || `${duration} Premium Plan`}
+                </Text>
+                {planType && (
+                  <Text style={styles.planTypeText}>
+                    {planType.charAt(0).toUpperCase() + planType.slice(1)} Plan
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.subscriptionAmount}>
+                {currency || '₹'}{amount}
+              </Text>
             </View>
+
+            {description && (
+              <View style={styles.descriptionContainer}>
+                <Text style={styles.descriptionText}>{description}</Text>
+              </View>
+            )}
             
             <View style={styles.benefitsContainer}>
               <Text style={styles.benefitsTitle}>What's included:</Text>
@@ -198,6 +366,14 @@ export default function Pay() {
                 </View>
               ))}
             </View>
+
+            {duration && (
+              <View style={styles.durationContainer}>
+                <Text style={styles.durationText}>
+                  Duration: {duration} month{duration > 1 ? 's' : ''}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Payment Summary Card */}
@@ -205,30 +381,38 @@ export default function Pay() {
             <Text style={styles.sectionTitle}>Payment Summary</Text>
             
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subscription ({duration})</Text>
-              <Text style={styles.summaryValue}>₹{amount}</Text>
+              <Text style={styles.summaryLabel}>
+                {planName || 'Subscription'} ({duration} month{duration > 1 ? 's' : ''})
+              </Text>
+              <Text style={styles.summaryValue}>
+                {currency || '₹'}{amount}
+              </Text>
             </View>
-            
-           
             
             <View style={styles.divider} />
             
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>₹{calculateTotal()}</Text>
+              <Text style={styles.totalValue}>
+                {currency || '₹'}{calculateTotal()}
+              </Text>
             </View>
           </View>
 
           {/* Payment Buttons */}
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.payButton} onPress={handlePayment}>
+            <TouchableOpacity 
+              style={[styles.payButton, loading && styles.payButtonDisabled]} 
+              onPress={handlePayment}
+              disabled={loading}
+            >
               <Text style={styles.payButtonText}>
-                Pay ₹{calculateTotal()} Now
+                {loading ? 'Processing...' : `Pay ${currency || '₹'}${calculateTotal()} Now`}
               </Text>
             </TouchableOpacity>
             
             <Text style={styles.securePaymentText}>
-              🔒 Secure payment powered by industry standard encryption
+              🔒 Secure payment powered by Razorpay
             </Text>
           </View>
         </View>
@@ -390,15 +574,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  planInfo: {
+    flex: 1,
+  },
   subscriptionPlan: {
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
   },
+  planTypeText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
   subscriptionAmount: {
     fontSize: 24,
     fontWeight: '800',
     color: '#4285f4',
+  },
+  descriptionContainer: {
+    backgroundColor: '#f0f4ff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
   },
   benefitsContainer: {
     backgroundColor: '#f8f9ff',
@@ -426,6 +629,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
     flex: 1,
+  },
+  durationContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  durationText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
   paymentSummaryCard: {
     backgroundColor: 'white',
@@ -488,6 +702,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
+  },
+  payButtonDisabled: {
+    backgroundColor: '#ccc',
+    shadowOpacity: 0.1,
   },
   payButtonText: {
     color: 'white',

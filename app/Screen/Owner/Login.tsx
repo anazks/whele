@@ -71,14 +71,13 @@ export default function Login() {
       } else {
         Alert.alert(
           'Login Failed',
-          response.message || 'Invalid email or password'
+           'Invalid email or password'
         );
       }
     } catch (error) {
-      console.error('Login error:', error);
       Alert.alert(
-        'Error',
-        'An unexpected error occurred. Please try again.'
+        'Login Failed',
+        'Invalid email or password'
       );
     } finally {
       setIsLoading(false);
