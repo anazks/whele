@@ -1,18 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
-import { Animated, Easing, Image, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { addCustomer, addService, addVehicle, getBrand, getCustomer, getCustomerVehicles } from '../../api/Services/management';
+import { Animated, Easing, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { addCustomer, addService, getCustomer, getCustomerVehicles } from '../../api/Services/management';
 import { FormStyles } from './Add'; // Adjust the path as needed
-
-// Transport type choices
-const TRANSPORT_TYPE_CHOICES = [
-  { value: 'private', label: 'Private' },
-  { value: 'goods_transport', label: 'Goods Transport' },
-  { value: 'passenger_transport', label: 'Passenger Transport' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'other', label: 'Other' },
-];
 
 // Service type choices
 const SERVICE_TYPE_CHOICES = [
@@ -25,48 +16,179 @@ const SERVICE_TYPE_CHOICES = [
   { value: 'other', label: 'Other' },
 ];
 
-// Generate years from 1980 to 2026
-const generateYearOptions = () => {
-  const years = [];
-  for (let year = 1980; year <= 2026; year++) {
-    years.push(year);
-  }
-  return years.reverse(); // Show most recent years first
-};
-
-const YEAR_OPTIONS = generateYearOptions();
-
 export default function CustomerAdd() {
   const [activeForm, setActiveForm] = useState('addCustomer');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
-  const [showBrandSelection, setShowBrandSelection] = useState(false);
-  const [showTransportSelection, setShowTransportSelection] = useState(false);
   const [showServiceTypeSelection, setShowServiceTypeSelection] = useState(false);
-  const [showYearSelection, setShowYearSelection] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [selectedBrand, setSelectedBrand] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [customerFormHeight] = useState(new Animated.Value(0));
-  const [vehicleFormHeight] = useState(new Animated.Value(0));
   const [serviceFormHeight] = useState(new Animated.Value(0));
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState('english');
+  const [nextKilometer, setNextKilometer] = useState('');
+  const [showNextKilometerInput, setShowNextKilometerInput] = useState(false);
+
+  // Translations for the customer add screen
+  const translations = {
+    english: {
+      addCustomer: "Add Customer",
+      addService: "Add Service",
+      addNewCustomer: "Add New Customer",
+      fullName: "Full Name *",
+      enterCustomerName: "Enter customer name",
+      phoneNumber: "Phone Number *",
+      enterPhoneNumber: "Enter phone number",
+      email: "Email",
+      enterEmailAddress: "Enter email address",
+      addCustomerButton: "Add Customer",
+      adding: "Adding...",
+      customerAdded: "Customer added successfully!",
+      failedAddCustomer: "Failed to add customer. Please try again.",
+      nameRequired: "Name is required",
+      phoneRequired: "Phone number is required",
+      validPhone: "Enter a valid phone number (10-15 digits)",
+      validEmail: "Enter a valid email address",
+      addServiceTitle: "Add Service",
+      serviceType: "Service Type *",
+      selectServiceType: "Select service type",
+      description: "Description",
+      enterServiceDescription: "Enter service description",
+      kilometers: "Kilometers",
+      enterKilometers: "Enter kilometers",
+      nextKilometer: "Next Kilometer *",
+      enterNextKilometer: "Enter next kilometer",
+      price: "Price",
+      enterServicePrice: "Enter service price",
+      nextServiceDueDate: "Next Service Due Date",
+      selectDueDate: "Select due date",
+      addServiceButton: "Add Service",
+      serviceAdded: "Service added successfully!",
+      failedAddService: "Failed to add service. Please try again.",
+      vehicleRequired: "Vehicle is required",
+      serviceTypeRequired: "Service type is required",
+      nextKilometerRequired: "Next kilometer is required",
+      validPrice: "Enter a valid price",
+      validKilometers: "Enter a valid kilometers value",
+      validNextKilometer: "Enter a valid next kilometer value",
+      selectCustomerTitle: "Select Customer",
+      searchCustomer: "Search by name, phone or email",
+      selectServiceTypeTitle: "Select Service Type",
+      close: "Close",
+      noVehicles: "No vehicles found for this customer",
+      alignment: "Alignment",
+      balancing: "Balancing",
+      rotation: "Rotation",
+      change: "Change",
+      repair: "Repair",
+      inspection: "Inspection",
+      other: "Other"
+    },
+    hindi: {
+      addCustomer: "ग्राहक जोड़ें",
+      addService: "सेवा जोड़ें",
+      addNewCustomer: "नया ग्राहक जोड़ें",
+      fullName: "पूरा नाम *",
+      enterCustomerName: "ग्राहक का नाम दर्ज करें",
+      phoneNumber: "फोन नंबर *",
+      enterPhoneNumber: "फोन नंबर दर्ज करें",
+      email: "ईमेल",
+      enterEmailAddress: "ईमेल पता दर्ज करें",
+      addCustomerButton: "ग्राहक जोड़ें",
+      adding: "जोड़ा जा रहा है...",
+      customerAdded: "ग्राहक सफलतापूर्वक जोड़ा गया!",
+      failedAddCustomer: "ग्राहक जोड़ने में विफल। कृपया पुनः प्रयास करें।",
+      nameRequired: "नाम आवश्यक है",
+      phoneRequired: "फोन नंबर आवश्यक है",
+      validPhone: "एक वैध फोन नंबर दर्ज करें (10-15 अंक)",
+      validEmail: "एक वैध ईमेल पता दर्ज करें",
+      addServiceTitle: "सेवा जोड़ें",
+      serviceType: "सेवा प्रकार *",
+      selectServiceType: "सेवा प्रकार चुनें",
+      description: "विवरण",
+      enterServiceDescription: "सेवा विवरण दर्ज करें",
+      kilometers: "किलोमीटर",
+      enterKilometers: "किलोमीटर दर्ज करें",
+      nextKilometer: "अगला किलोमीटर *",
+      enterNextKilometer: "अगला किलोमीटर दर्ज करें",
+      price: "मूल्य",
+      enterServicePrice: "सेवा मूल्य दर्ज करें",
+      nextServiceDueDate: "अगली सेवा नियत तिथि",
+      selectDueDate: "नियत तिथि चुनें",
+      addServiceButton: "सेवा जोड़ें",
+      serviceAdded: "सेवा सफलतापूर्वक जोड़ी गई!",
+      failedAddService: "सेवा जोड़ने में विफल। कृपया पुनः प्रयास करें।",
+      vehicleRequired: "वाहन आवश्यक है",
+      serviceTypeRequired: "सेवा प्रकार आवश्यक है",
+      nextKilometerRequired: "अगला किलोमीटर आवश्यक है",
+      validPrice: "एक वैध मूल्य दर्ज करें",
+      validKilometers: "एक वैध किलोमीटर मान दर्ज करें",
+      validNextKilometer: "एक वैध अगला किलोमीटर मान दर्ज करें",
+      selectCustomerTitle: "ग्राहक चुनें",
+      searchCustomer: "नाम, फोन या ईमेल से खोजें",
+      selectServiceTypeTitle: "सेवा प्रकार चुनें",
+      close: "बंद करें",
+      noVehicles: "इस ग्राहक के लिए कोई वाहन नहीं मिला",
+      alignment: "अलाइनमेंट",
+      balancing: "बैलेंसिंग",
+      rotation: "रोटेशन",
+      change: "बदलना",
+      repair: "मरम्मत",
+      inspection: "निरीक्षण",
+      other: "अन्य"
+    }
+  };
+
+  // Translation function
+  const t = (key) => {
+    return translations[currentLanguage][key] || key;
+  };
+
+  // Load language preference and next_kilometer from localStorage
+  const loadLanguagePreference = async () => {
+    try {
+      const savedLanguage = await AsyncStorage.getItem('appLanguage');
+      if (savedLanguage) {
+        setCurrentLanguage(savedLanguage);
+      }
+    } catch (error) {
+      console.error('Error loading language preference:', error);
+    }
+  };
+
+  // Load next_kilometer from localStorage
+  const loadNextKilometer = async () => {
+    try {
+      const savedNextKilometer = await AsyncStorage.getItem('next_kilometer');
+      if (savedNextKilometer) {
+        setNextKilometer(savedNextKilometer);
+        setShowNextKilometerInput(false);
+      } else {
+        setShowNextKilometerInput(true);
+      }
+    } catch (error) {
+      console.error('Error loading next_kilometer:', error);
+      setShowNextKilometerInput(true);
+    }
+  };
+
+  // Save next_kilometer to localStorage
+  const saveNextKilometer = async (value) => {
+    try {
+      await AsyncStorage.setItem('next_kilometer', value);
+      setNextKilometer(value);
+      setShowNextKilometerInput(false);
+    } catch (error) {
+      console.error('Error saving next_kilometer:', error);
+    }
+  };
 
   // Customer form state
   const [customerForm, setCustomerForm] = useState({
     name: '',
     phone: '',
     email: ''
-  });
-
-  // Vehicle form state
-  const [vehicleForm, setVehicleForm] = useState({
-    customer: '',
-    vehicle_type: '', // brand id
-    vehicle_model: '', // year (1980-2026)
-    vehicle_number: '',
-    transport_type: '',
-    last_service_date: ''
   });
 
   // Service form state
@@ -77,50 +199,34 @@ export default function CustomerAdd() {
     description: '',
     price: '',
     kilometers: '', // Added kilometers field
-    next_service_due_date: '' // Add next service due date field
+    next_service_due_date: '', // Add next service due date field
+    next_kilometer_input: '' // For manual input when not in localStorage
   });
 
   const [errors, setErrors] = useState({});
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [customerVehicles, setCustomerVehicles] = useState([]);
-  const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newCustomerId, setNewCustomerId] = useState(null);
 
   // Fetch customers on component mount
   useEffect(() => {
-    const fetchCustomers = async () => {
+    const fetchData = async () => {
+      await loadLanguagePreference();
+      await loadNextKilometer();
+      
       try {
         setLoading(true);
         const response = await getCustomer();
-        console.log('Fetched customers:', response);
         setFilteredCustomers(response);
       } catch (error) {
-        console.error('Failed to fetch customers:', error);
-        alert('Failed to fetch customers. Please try again.');
+        alert(t('failedAddCustomer'));
       } finally {
         setLoading(false);
       }
     };
-    fetchCustomers();
-  }, []);
-
-  // Fetch brands on component mount
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        setLoading(true);
-        const brandsResponse = await getBrand();
-        console.log('Fetched brands:', brandsResponse);
-        setBrands(brandsResponse);
-      } catch (error) {
-        console.error('Failed to fetch brands:', error);
-        alert('Failed to fetch brands. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBrands();
+    
+    fetchData();
   }, []);
 
   // Filter customers based on search query
@@ -140,11 +246,9 @@ export default function CustomerAdd() {
     try {
       setLoading(true);
       const vehiclesResponse = await getCustomerVehicles(customerId);
-      console.log('Fetched customer vehicles:', vehiclesResponse);
       setCustomerVehicles(vehiclesResponse);
     } catch (error) {
-      console.error('Failed to fetch customer vehicles:', error);
-      alert('Failed to fetch customer vehicles. Please try again.');
+      alert(t('failedAddVehicle'));
       setCustomerVehicles([]);
     } finally {
       setLoading(false);
@@ -153,12 +257,15 @@ export default function CustomerAdd() {
 
   // Calculate dynamic heights based on content and customer selection
   const getServiceFormHeight = () => {
-    let baseHeight = 450; // Increased base height for service form to accommodate kilometers field
+    let baseHeight = 500; // Increased base height for service form to accommodate next_kilometer field
     if (selectedCustomer && customerVehicles.length > 0) {
       baseHeight += Math.min(customerVehicles.length * 50, 150); // Add height for vehicle list
     }
     if (showDatePicker && Platform.OS === 'ios') {
       baseHeight += 200; // Add height for iOS date picker
+    }
+    if (showNextKilometerInput) {
+      baseHeight += 80; // Add height for next_kilometer input
     }
     return baseHeight;
   };
@@ -172,29 +279,17 @@ export default function CustomerAdd() {
       useNativeDriver: false,
     }).start();
 
-    Animated.timing(vehicleFormHeight, {
-      toValue: activeForm === 'addVehicle' ? 1 : 0,
-      duration: 300,
-      easing: Easing.ease,
-      useNativeDriver: false,
-    }).start();
-
     Animated.timing(serviceFormHeight, {
       toValue: activeForm === 'addService' ? 1 : 0,
       duration: 300,
       easing: Easing.ease,
       useNativeDriver: false,
     }).start();
-  }, [activeForm, selectedCustomer, customerVehicles.length, showDatePicker]);
+  }, [activeForm, selectedCustomer, customerVehicles.length, showDatePicker, showNextKilometerInput]);
 
   const customerFormHeightInterpolate = customerFormHeight.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 420]
-  });
-
-  const vehicleFormHeightInterpolate = vehicleFormHeight.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 700]
   });
 
   const serviceFormHeightInterpolate = serviceFormHeight.interpolate({
@@ -205,20 +300,6 @@ export default function CustomerAdd() {
   const handleCustomerChange = (name, value) => {
     setCustomerForm({
       ...customerForm,
-      [name]: value
-    });
-
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: ''
-      });
-    }
-  };
-
-  const handleVehicleChange = (name, value) => {
-    setVehicleForm({
-      ...vehicleForm,
       [name]: value
     });
 
@@ -244,61 +325,40 @@ export default function CustomerAdd() {
     }
   };
 
+  // Handle next_kilometer input change and save to localStorage
+  const handleNextKilometerChange = (value) => {
+    setServiceForm({
+      ...serviceForm,
+      next_kilometer_input: value
+    });
+    
+    if (errors.next_kilometer) {
+      setErrors({
+        ...errors,
+        next_kilometer: ''
+      });
+    }
+  };
+
   const validateCustomerForm = () => {
     let valid = true;
     const newErrors = {};
 
     if (!customerForm.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = t('nameRequired');
       valid = false;
     }
 
     if (!customerForm.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
+      newErrors.phone = t('phoneRequired');
       valid = false;
     } else if (!/^\d{10,15}$/.test(customerForm.phone)) {
-      newErrors.phone = 'Enter a valid phone number (10-15 digits)';
+      newErrors.phone = t('validPhone');
       valid = false;
     }
 
     if (customerForm.email && !/^\S+@\S+\.\S+$/.test(customerForm.email)) {
-      newErrors.email = 'Enter a valid email address';
-      valid = false;
-    }
-
-    setErrors(newErrors);
-    return valid;
-  };
-
-  const validateVehicleForm = () => {
-    let valid = true;
-    const newErrors = {};
-
-    if (!vehicleForm.customer) {
-      newErrors.customer = 'Customer is required';
-      valid = false;
-    }
-
-    if (!vehicleForm.vehicle_type) {
-      newErrors.vehicle_type = 'Brand is required';
-      valid = false;
-    }
-
-    if (!vehicleForm.vehicle_model) {
-      newErrors.vehicle_model = 'Vehicle model year is required';
-      valid = false;
-    } else if (parseInt(vehicleForm.vehicle_model) < 1980 || parseInt(vehicleForm.vehicle_model) > 2026) {
-      newErrors.vehicle_model = 'Vehicle model year must be between 1980 and 2026';
-      valid = false;
-    }
-
-    if (!vehicleForm.vehicle_number) {
-      newErrors.vehicle_number = 'Vehicle number is required';
-      valid = false;
-    }
-
-    if (!vehicleForm.transport_type) {
-      newErrors.transport_type = 'Transport type is required';
+      newErrors.email = t('validEmail');
       valid = false;
     }
 
@@ -311,24 +371,34 @@ export default function CustomerAdd() {
     const newErrors = {};
 
     if (!serviceForm.vehicle) {
-      newErrors.vehicle = 'Vehicle is required';
+      newErrors.vehicle = t('vehicleRequired');
       valid = false;
     }
 
     if (!serviceForm.service_type) {
-      newErrors.service_type = 'Service type is required';
+      newErrors.service_type = t('serviceTypeRequired');
+      valid = false;
+    }
+
+    // Validate next_kilometer (mandatory)
+    const nextKilometerValue = showNextKilometerInput ? serviceForm.next_kilometer_input : nextKilometer;
+    if (!nextKilometerValue || nextKilometerValue.trim() === '') {
+      newErrors.next_kilometer = t('nextKilometerRequired');
+      valid = false;
+    } else if (isNaN(nextKilometerValue) || parseFloat(nextKilometerValue) < 0) {
+      newErrors.next_kilometer = t('validNextKilometer');
       valid = false;
     }
 
     // Price is no longer mandatory, but if provided, it should be valid
     if (serviceForm.price && (isNaN(serviceForm.price) || parseFloat(serviceForm.price) <= 0)) {
-      newErrors.price = 'Enter a valid price';
+      newErrors.price = t('validPrice');
       valid = false;
     }
 
     // Validate kilometers if provided
     if (serviceForm.kilometers && (isNaN(serviceForm.kilometers) || parseFloat(serviceForm.kilometers) < 0)) {
-      newErrors.kilometers = 'Enter a valid kilometers value';
+      newErrors.kilometers = t('validKilometers');
       valid = false;
     }
 
@@ -340,13 +410,11 @@ export default function CustomerAdd() {
     if (validateCustomerForm()) {
       try {
         setLoading(true);
-        console.log('Customer submitted:', customerForm);
-        const response = await addCustomer(customerForm);
-        console.log("Response from API:", response);
-        
+        const response = await addCustomer(customerForm); 
+        console.log(response,"---response");       
         if (response && response.id) {
           setNewCustomerId(response.id);
-          alert('Customer added successfully!');
+          alert(t('customerAdded'));
           
           // Reset form
           setCustomerForm({
@@ -360,48 +428,7 @@ export default function CustomerAdd() {
           setFilteredCustomers(updatedCustomers);
         }
       } catch (error) {
-        console.error('Error adding customer:', error);
-        alert('Failed to add customer. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleVehicleSubmit = async () => {
-    if (validateVehicleForm()) {
-      try {
-        setLoading(true);
-        console.log('Vehicle submitted:', vehicleForm);
-        
-        const vehicleData = {
-          customer: vehicleForm.customer,
-          vehicle_type: vehicleForm.vehicle_type,
-          vehicle_model: parseInt(vehicleForm.vehicle_model), // Convert to integer
-          vehicle_number: vehicleForm.vehicle_number,
-          transport_type: vehicleForm.transport_type,
-          last_service_date: vehicleForm.last_service_date || null
-        };
-        
-        const response = await addVehicle(vehicleData);
-        console.log("Response from API:", response);
-        
-        alert('Vehicle added successfully!');
-        
-        // Reset form
-        setVehicleForm({
-          customer: '',
-          vehicle_type: '',
-          vehicle_model: '',
-          vehicle_number: '',
-          transport_type: '',
-          last_service_date: ''
-        });
-        setSelectedBrand(null);
-        setSelectedCustomer(null);
-      } catch (error) {
-        console.error('Error adding vehicle:', error);
-        alert('Failed to add vehicle. Please try again.');
+        alert(t('Mobile number Exists'));
       } finally {
         setLoading(false);
       }
@@ -412,7 +439,14 @@ export default function CustomerAdd() {
     if (validateServiceForm()) {
       try {
         setLoading(true);
-        console.log('Service submitted:', serviceForm);
+        
+        // Get next_kilometer value
+        const nextKilometerValue = showNextKilometerInput ? serviceForm.next_kilometer_input : nextKilometer;
+        
+        // If next_kilometer was input manually, save it to localStorage
+        if (showNextKilometerInput && serviceForm.next_kilometer_input) {
+          await saveNextKilometer(serviceForm.next_kilometer_input);
+        }
         
         const serviceData = {
           customer: serviceForm.customer, // Include customer ID
@@ -421,13 +455,12 @@ export default function CustomerAdd() {
           description: serviceForm.description,
           price: serviceForm.price || null, // Price is optional now
           kilometers: serviceForm.kilometers || null, // Include kilometers
-          next_service_due_date: serviceForm.next_service_due_date || null
-        };
+          next_service_due_date: serviceForm.next_service_due_date || null,
+          next_kilometer: parseFloat(nextKilometerValue) // Include mandatory next_kilometer
+        }; 
         
-        const response = await addService(serviceData);
-        console.log("Response from API:", response);
-        
-        alert('Service added successfully!');
+        const response = await addService(serviceData);        
+        alert(t('serviceAdded'));
         
         // Reset form
         setServiceForm({
@@ -437,14 +470,14 @@ export default function CustomerAdd() {
           description: '',
           price: '',
           kilometers: '',
-          next_service_due_date: ''
+          next_service_due_date: '',
+          next_kilometer_input: ''
         });
         setSelectedCustomer(null);
         setSelectedVehicle(null);
         setCustomerVehicles([]);
       } catch (error) {
-        console.error('Error adding service:', error);
-        alert('Failed to add service. Please try again.');
+        alert(t('failedAddService'));
       } finally {
         setLoading(false);
       }
@@ -454,12 +487,7 @@ export default function CustomerAdd() {
   const selectCustomer = (customer) => {
     setSelectedCustomer(customer);
     
-    if (activeForm === 'addVehicle') {
-      setVehicleForm({
-        ...vehicleForm,
-        customer: customer.id
-      });
-    } else if (activeForm === 'addService') {
+    if (activeForm === 'addService') {
       setServiceForm({
         ...serviceForm,
         customer: customer.id, // Set customer ID in service form
@@ -472,23 +500,6 @@ export default function CustomerAdd() {
     
     setShowCustomerSearch(false);
     setSearchQuery('');
-  };
-
-  const selectBrand = (brand) => {
-    setSelectedBrand(brand);
-    setVehicleForm({
-      ...vehicleForm,
-      vehicle_type: brand.id
-    });
-    setShowBrandSelection(false);
-  };
-
-  const selectTransportType = (transportType) => {
-    setVehicleForm({
-      ...vehicleForm,
-      transport_type: transportType.value
-    });
-    setShowTransportSelection(false);
   };
 
   const selectServiceType = (serviceType) => {
@@ -507,14 +518,6 @@ export default function CustomerAdd() {
     });
   };
 
-  const selectYear = (year) => {
-    setVehicleForm({
-      ...vehicleForm,
-      vehicle_model: year.toString()
-    });
-    setShowYearSelection(false);
-  };
-
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === 'ios'); // Keep open on iOS, close on Android
     if (selectedDate) {
@@ -528,6 +531,15 @@ export default function CustomerAdd() {
 
   const showDatepicker = () => {
     setShowDatePicker(true);
+  };
+
+  // Helper function to get translated label for service type
+  const getTranslatedServiceType = (value) => {
+    const serviceType = SERVICE_TYPE_CHOICES.find(st => st.value === value);
+    if (serviceType) {
+      return t(serviceType.value);
+    }
+    return value;
   };
 
   return (
@@ -548,21 +560,7 @@ export default function CustomerAdd() {
             color={activeForm === 'addCustomer' ? '#fff' : '#3498db'} 
           />
           <Text style={[FormStyles.formOptionText, activeForm === 'addCustomer' && FormStyles.activeFormOptionText]}>
-            Add Customer
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[FormStyles.formOption, activeForm === 'addVehicle' && FormStyles.activeFormOption]}
-          onPress={() => setActiveForm('addVehicle')}
-        >
-          <Ionicons 
-            name="car" 
-            size={20} 
-            color={activeForm === 'addVehicle' ? '#fff' : '#3498db'} 
-          />
-          <Text style={[FormStyles.formOptionText, activeForm === 'addVehicle' && FormStyles.activeFormOptionText]}>
-            Add Vehicle
+            {t('addCustomer')}
           </Text>
         </TouchableOpacity>
         
@@ -576,7 +574,7 @@ export default function CustomerAdd() {
             color={activeForm === 'addService' ? '#fff' : '#3498db'} 
           />
           <Text style={[FormStyles.formOptionText, activeForm === 'addService' && FormStyles.activeFormOptionText]}>
-            Add Service
+            {t('addService')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -584,13 +582,13 @@ export default function CustomerAdd() {
       {/* Customer Form */}
       {activeForm === 'addCustomer' && (
         <View style={[FormStyles.formContainer, { marginTop: 0 }]}>
-          <Text style={FormStyles.formTitle}>Add New Customer</Text>
+          <Text style={FormStyles.formTitle}>{t('addNewCustomer')}</Text>
           
           <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Full Name *</Text>
+            <Text style={FormStyles.label}>{t('fullName')}</Text>
             <TextInput
               style={[FormStyles.input, errors.name && FormStyles.inputError]}
-              placeholder="Enter customer name"
+              placeholder={t('enterCustomerName')}
               placeholderTextColor="#999"
               value={customerForm.name}
               onChangeText={(text) => handleCustomerChange('name', text)}
@@ -600,10 +598,10 @@ export default function CustomerAdd() {
           </View>
 
           <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Phone Number *</Text>
+            <Text style={FormStyles.label}>{t('phoneNumber')}</Text>
             <TextInput
               style={[FormStyles.input, errors.phone && FormStyles.inputError]}
-              placeholder="Enter phone number"
+              placeholder={t('enterPhoneNumber')}
               placeholderTextColor="#999"
               keyboardType="phone-pad"
               value={customerForm.phone}
@@ -614,10 +612,10 @@ export default function CustomerAdd() {
           </View>
 
           <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Email</Text>
+            <Text style={FormStyles.label}>{t('email')}</Text>
             <TextInput
               style={[FormStyles.input, errors.email && FormStyles.inputError]}
-              placeholder="Enter email address"
+              placeholder={t('enterEmailAddress')}
               placeholderTextColor="#999"
               keyboardType="email-address"
               value={customerForm.email}
@@ -633,126 +631,7 @@ export default function CustomerAdd() {
             disabled={loading}
           >
             <Text style={FormStyles.submitButtonText}>
-              {loading ? 'Adding...' : 'Add Customer'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Vehicle Form */}
-      {activeForm === 'addVehicle' && (
-        <View style={[FormStyles.formContainer, { marginTop: 0 }]}>
-          <Text style={FormStyles.formTitle}>Add Vehicle</Text>
-          
-          {/* Customer Selection */}
-          <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Customer *</Text>
-            <TouchableOpacity 
-              style={[FormStyles.selector, errors.customer && FormStyles.inputError]}
-              onPress={() => setShowCustomerSearch(true)}
-            >
-              {selectedCustomer ? (
-                <Text style={FormStyles.selectedText}>{selectedCustomer.name}</Text>
-              ) : (
-                <Text style={FormStyles.placeholderText}>Select a customer</Text>
-              )}
-              <Ionicons name="chevron-down" size={20} color="#999" />
-            </TouchableOpacity>
-            {errors.customer ? <Text style={FormStyles.errorText}>{errors.customer}</Text> : null}
-          </View>
-
-          {/* Brand Selection */}
-          <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Brand *</Text>
-            <TouchableOpacity 
-              style={[FormStyles.selector, errors.vehicle_type && FormStyles.inputError]}
-              onPress={() => setShowBrandSelection(true)}
-            >
-              {selectedBrand ? (
-                <View style={FormStyles.selectedBrandContainer}>
-                  {selectedBrand.image_url && (
-                    <Image source={{ uri: selectedBrand.image_url }} style={FormStyles.brandImage} />
-                  )}
-                  <Text style={FormStyles.selectedText}>{selectedBrand.name}</Text>
-                </View>
-              ) : (
-                <Text style={FormStyles.placeholderText}>Select a brand</Text>
-              )}
-              <Ionicons name="chevron-down" size={20} color="#999" />
-            </TouchableOpacity>
-            {errors.vehicle_type ? <Text style={FormStyles.errorText}>{errors.vehicle_type}</Text> : null}
-          </View>
-
-          {/* Vehicle Model Year Selection */}
-          <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Vehicle Model Year *</Text>
-            <TouchableOpacity 
-              style={[FormStyles.selector, errors.vehicle_model && FormStyles.inputError]}
-              onPress={() => setShowYearSelection(true)}
-            >
-              {vehicleForm.vehicle_model ? (
-                <Text style={FormStyles.selectedText}>{vehicleForm.vehicle_model}</Text>
-              ) : (
-                <Text style={FormStyles.placeholderText}>Select model year</Text>
-              )}
-              <Ionicons name="chevron-down" size={20} color="#999" />
-            </TouchableOpacity>
-            {errors.vehicle_model ? <Text style={FormStyles.errorText}>{errors.vehicle_model}</Text> : null}
-          </View>
-
-          {/* Vehicle Number */}
-          <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Vehicle Number *</Text>
-            <TextInput
-              style={[FormStyles.input, errors.vehicle_number && FormStyles.inputError]}
-              placeholder="Enter vehicle number"
-              placeholderTextColor="#999"
-              value={vehicleForm.vehicle_number}
-              onChangeText={(text) => handleVehicleChange('vehicle_number', text.toUpperCase())}
-              maxLength={20}
-              autoCapitalize="characters"
-            />
-            {errors.vehicle_number ? <Text style={FormStyles.errorText}>{errors.vehicle_number}</Text> : null}
-          </View>
-
-          {/* Transport Type */}
-          <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Transport Type *</Text>
-            <TouchableOpacity 
-              style={[FormStyles.selector, errors.transport_type && FormStyles.inputError]}
-              onPress={() => setShowTransportSelection(true)}
-            >
-              {vehicleForm.transport_type ? (
-                <Text style={FormStyles.selectedText}>
-                  {TRANSPORT_TYPE_CHOICES.find(tt => tt.value === vehicleForm.transport_type)?.label}
-                </Text>
-              ) : (
-                <Text style={FormStyles.placeholderText}>Select transport type</Text>
-              )}
-              <Ionicons name="chevron-down" size={20} color="#999" />
-            </TouchableOpacity>
-            {errors.transport_type ? <Text style={FormStyles.errorText}>{errors.transport_type}</Text> : null}
-          </View>
-
-          {/* Last Service Date */}
-          <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Last Service Date</Text>
-            <TextInput
-              style={FormStyles.input}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#999"
-              value={vehicleForm.last_service_date}
-              onChangeText={(text) => handleVehicleChange('last_service_date', text)}
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={[FormStyles.submitButton, loading && FormStyles.submitButtonDisabled]} 
-            onPress={handleVehicleSubmit}
-            disabled={loading}
-          >
-            <Text style={FormStyles.submitButtonText}>
-              {loading ? 'Adding...' : 'Add Vehicle'}
+              {loading ? t('adding') : t('addCustomerButton')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -761,11 +640,11 @@ export default function CustomerAdd() {
       {/* Service Form */}
       {activeForm === 'addService' && (
         <View style={[FormStyles.formContainer, { marginTop: 0, minHeight: 'auto' }]}>
-          <Text style={FormStyles.formTitle}>Add Service</Text>
+          <Text style={FormStyles.formTitle}>{t('addServiceTitle')}</Text>
           
           {/* Customer Selection */}
           <View style={FormStyles.formGroup}>
-            <Text style={FormStyles.label}>Customer *</Text>
+            <Text style={FormStyles.label}>{t('customer')}</Text>
             <TouchableOpacity 
               style={[FormStyles.selector]}
               onPress={() => setShowCustomerSearch(true)}
@@ -773,7 +652,7 @@ export default function CustomerAdd() {
               {selectedCustomer ? (
                 <Text style={FormStyles.selectedText}>{selectedCustomer.name}</Text>
               ) : (
-                <Text style={FormStyles.placeholderText}>Select a customer</Text>
+                <Text style={FormStyles.placeholderText}>{t('selectCustomer')}</Text>
               )}
               <Ionicons name="chevron-down" size={20} color="#999" />
             </TouchableOpacity>
@@ -782,7 +661,7 @@ export default function CustomerAdd() {
           {/* Vehicle Selection - Only show if customer is selected */}
           {selectedCustomer && (
             <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
-              <Text style={FormStyles.label}>Vehicle *</Text>
+              <Text style={FormStyles.label}>{t('vehicle')}</Text>
               {customerVehicles.length > 0 ? (
                 <ScrollView style={FormStyles.vehicleList} nestedScrollEnabled={true}>
                   {customerVehicles.map(vehicle => (
@@ -801,7 +680,7 @@ export default function CustomerAdd() {
                   ))}
                 </ScrollView>
               ) : (
-                <Text style={FormStyles.noVariantsText}>No vehicles found for this customer</Text>
+                <Text style={FormStyles.noVariantsText}>{t('noVehicles')}</Text>
               )}
               {errors.vehicle ? <Text style={FormStyles.errorText}>{errors.vehicle}</Text> : null}
             </View>
@@ -809,17 +688,17 @@ export default function CustomerAdd() {
 
           {/* Service Type */}
           <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
-            <Text style={FormStyles.label}>Service Type *</Text>
+            <Text style={FormStyles.label}>{t('serviceType')}</Text>
             <TouchableOpacity 
               style={[FormStyles.selector, errors.service_type && FormStyles.inputError]}
               onPress={() => setShowServiceTypeSelection(true)}
             >
               {serviceForm.service_type ? (
                 <Text style={FormStyles.selectedText}>
-                  {SERVICE_TYPE_CHOICES.find(st => st.value === serviceForm.service_type)?.label}
+                  {getTranslatedServiceType(serviceForm.service_type)}
                 </Text>
               ) : (
-                <Text style={FormStyles.placeholderText}>Select service type</Text>
+                <Text style={FormStyles.placeholderText}>{t('selectServiceType')}</Text>
               )}
               <Ionicons name="chevron-down" size={20} color="#999" />
             </TouchableOpacity>
@@ -828,10 +707,10 @@ export default function CustomerAdd() {
 
           {/* Description */}
           <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
-            <Text style={FormStyles.label}>Description</Text>
+            <Text style={FormStyles.label}>{t('description')}</Text>
             <TextInput
               style={[FormStyles.input, FormStyles.textArea]}
-              placeholder="Enter service description"
+              placeholder={t('enterServiceDescription')}
               placeholderTextColor="#999"
               value={serviceForm.description}
               onChangeText={(text) => handleServiceChange('description', text)}
@@ -842,10 +721,10 @@ export default function CustomerAdd() {
 
           {/* Kilometers */}
           <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
-            <Text style={FormStyles.label}>Kilometers</Text>
+            <Text style={FormStyles.label}>{t('kilometers')}</Text>
             <TextInput
               style={[FormStyles.input, errors.kilometers && FormStyles.inputError]}
-              placeholder="Enter kilometers"
+              placeholder={t('enterKilometers')}
               placeholderTextColor="#999"
               keyboardType="decimal-pad"
               value={serviceForm.kilometers}
@@ -854,12 +733,43 @@ export default function CustomerAdd() {
             {errors.kilometers ? <Text style={FormStyles.errorText}>{errors.kilometers}</Text> : null}
           </View>
 
+          {/* Next Kilometer - Show input if not in localStorage, otherwise show stored value */}
+          {showNextKilometerInput ? (
+            <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
+              <Text style={FormStyles.label}>{t('nextKilometer')}</Text>
+              <TextInput
+                style={[FormStyles.input, errors.next_kilometer && FormStyles.inputError]}
+                placeholder={t('enterNextKilometer')}
+                placeholderTextColor="#999"
+                keyboardType="decimal-pad"
+                value={serviceForm.next_kilometer_input}
+                onChangeText={handleNextKilometerChange}
+              />
+              {errors.next_kilometer ? <Text style={FormStyles.errorText}>{errors.next_kilometer}</Text> : null}
+            </View>
+          ) : (
+            <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
+              <Text style={FormStyles.label}>{t('nextKilometer')}</Text>
+              <View style={[FormStyles.input, { justifyContent: 'center' }]}>
+                <Text style={{ color: '#333', fontSize: 16 }}>
+                  {nextKilometer} (from settings)
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={[FormStyles.linkButton, { marginTop: 5 }]}
+                onPress={() => setShowNextKilometerInput(true)}
+              >
+                <Text style={FormStyles.linkButtonText}>Change Next Kilometer</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Price */}
           <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
-            <Text style={FormStyles.label}>Price</Text>
+            <Text style={FormStyles.label}>{t('price')}</Text>
             <TextInput
               style={[FormStyles.input, errors.price && FormStyles.inputError]}
-              placeholder="Enter service price"
+              placeholder={t('enterServicePrice')}
               placeholderTextColor="#999"
               keyboardType="decimal-pad"
               value={serviceForm.price}
@@ -867,47 +777,17 @@ export default function CustomerAdd() {
             />
             {errors.price ? <Text style={FormStyles.errorText}>{errors.price}</Text> : null}
           </View>
-
-          {/* Next Service Due Date */}
-          <View style={[FormStyles.formGroup, { marginTop: 15 }]}>
-            <Text style={FormStyles.label}>Next Service Due Date</Text>
-            <TouchableOpacity 
-              style={FormStyles.selector}
-              onPress={showDatepicker}
-            >
-              {serviceForm.next_service_due_date ? (
-                <Text style={FormStyles.selectedText}>{serviceForm.next_service_due_date}</Text>
-              ) : (
-                <Text style={FormStyles.placeholderText}>Select due date</Text>
-              )}
-              <Ionicons name="calendar" size={20} color="#999" />
-            </TouchableOpacity>
-          </View>
-
-          {showDatePicker && (
-            <View style={{ marginTop: 10, marginBottom: 20 }}>
-              <DateTimePicker
-                value={serviceForm.next_service_due_date ? new Date(serviceForm.next_service_due_date) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={handleDateChange}
-                minimumDate={new Date()}
-              />
-            </View>
-          )}
-
           <TouchableOpacity 
             style={[FormStyles.submitButton, loading && FormStyles.submitButtonDisabled, { marginTop: 30 }]} 
             onPress={handleServiceSubmit}
             disabled={loading}
           >
             <Text style={FormStyles.submitButtonText}>
-              {loading ? 'Adding...' : 'Add Service'}
+              {loading ? t('adding') : t('addServiceButton')}
             </Text>
           </TouchableOpacity>
         </View>
       )}
-
       {/* Customer Search Modal */}
       <Modal
         visible={showCustomerSearch}
@@ -917,19 +797,17 @@ export default function CustomerAdd() {
       >
         <View style={FormStyles.modalContainer}>
           <View style={FormStyles.modalContent}>
-            <Text style={FormStyles.modalTitle}>Select Customer</Text>
-            
+            <Text style={FormStyles.modalTitle}>{t('selectCustomerTitle')}</Text>      
             <View style={FormStyles.modalSearchContainer}>
               <Ionicons name="search" size={20} color="#999" style={FormStyles.modalSearchIcon} />
               <TextInput
                 style={FormStyles.modalSearchInput}
-                placeholder="Search by name, phone or email"
+                placeholder={t('searchCustomer')}
                 placeholderTextColor="#999"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
             </View>
-
             <ScrollView style={FormStyles.modalList}>
               {filteredCustomers.map((customer) => (
                 <TouchableOpacity
@@ -952,114 +830,11 @@ export default function CustomerAdd() {
               style={FormStyles.closeButton}
               onPress={() => setShowCustomerSearch(false)}
             >
-              <Text style={FormStyles.closeButtonText}>Close</Text>
+              <Text style={FormStyles.closeButtonText}>{t('close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      {/* Brand Selection Modal */}
-      <Modal
-        visible={showBrandSelection}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowBrandSelection(false)}
-      >
-        <View style={FormStyles.modalContainer}>
-          <View style={FormStyles.modalContent}>
-            <Text style={FormStyles.modalTitle}>Select Brand</Text>
-            
-            <ScrollView style={FormStyles.brandGrid} contentContainerStyle={FormStyles.brandGridContent}>
-              {brands.map((brand) => (
-                <TouchableOpacity
-                  key={brand.id}
-                  style={FormStyles.brandCard}
-                  onPress={() => selectBrand(brand)}
-                >
-                  {brand.image_url && (
-                    <Image source={{ uri: brand.image_url }} style={FormStyles.brandCardImage} />
-                  )}
-                  <Text style={FormStyles.brandCardName}>{brand.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity 
-              style={FormStyles.closeButton}
-              onPress={() => setShowBrandSelection(false)}
-            >
-              <Text style={FormStyles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Year Selection Modal */}
-      <Modal
-        visible={showYearSelection}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowYearSelection(false)}
-      >
-        <View style={FormStyles.modalContainer}>
-          <View style={FormStyles.modalContent}>
-            <Text style={FormStyles.modalTitle}>Select Model Year</Text>
-            
-            <ScrollView style={FormStyles.modalList}>
-              {YEAR_OPTIONS.map((year) => (
-                <TouchableOpacity
-                  key={year}
-                  style={FormStyles.modalItem}
-                  onPress={() => selectYear(year)}
-                >
-                  <Text style={FormStyles.modalItemName}>{year}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity 
-              style={FormStyles.closeButton}
-              onPress={() => setShowYearSelection(false)}
-            >
-              <Text style={FormStyles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Transport Type Selection Modal */}
-      <Modal
-        visible={showTransportSelection}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowTransportSelection(false)}
-      >
-        <View style={FormStyles.modalContainer}>
-          <View style={FormStyles.modalContent}>
-            <Text style={FormStyles.modalTitle}>Select Transport Type</Text>
-            
-            <ScrollView style={FormStyles.modalList}>
-              {TRANSPORT_TYPE_CHOICES.map((transportType) => (
-                <TouchableOpacity
-                  key={transportType.value}
-                  style={FormStyles.modalItem}
-                  onPress={() => selectTransportType(transportType)}
-                >
-                  <Text style={FormStyles.modalItemName}>{transportType.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity 
-              style={FormStyles.closeButton}
-              onPress={() => setShowTransportSelection(false)}
-            >
-              <Text style={FormStyles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
       {/* Service Type Selection Modal */}
       <Modal
         visible={showServiceTypeSelection}
@@ -1069,8 +844,7 @@ export default function CustomerAdd() {
       >
         <View style={FormStyles.modalContainer}>
           <View style={FormStyles.modalContent}>
-            <Text style={FormStyles.modalTitle}>Select Service Type</Text>
-            
+            <Text style={FormStyles.modalTitle}>{t('selectServiceTypeTitle')}</Text> 
             <ScrollView style={FormStyles.modalList}>
               {SERVICE_TYPE_CHOICES.map((serviceType) => (
                 <TouchableOpacity
@@ -1078,16 +852,15 @@ export default function CustomerAdd() {
                   style={FormStyles.modalItem}
                   onPress={() => selectServiceType(serviceType)}
                 >
-                  <Text style={FormStyles.modalItemName}>{serviceType.label}</Text>
+                  <Text style={FormStyles.modalItemName}>{t(serviceType.value)}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             <TouchableOpacity 
               style={FormStyles.closeButton}
               onPress={() => setShowServiceTypeSelection(false)}
             >
-              <Text style={FormStyles.closeButtonText}>Close</Text>
+              <Text style={FormStyles.closeButtonText}>{t('close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

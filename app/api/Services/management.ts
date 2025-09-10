@@ -4,7 +4,8 @@ export const addStaff = async (Data: any) => {
   try {
     console.log("Data", Data);
     let response = await axios.post('/api/users/register/', Data);
-    return response.data;
+    console.log("Response from addStaff:", response);
+    return response;
   } catch (error: any) {
     if (error.response) {
       console.log("Backend Error:", error.response.data); // 👈 this shows real reason
@@ -16,6 +17,22 @@ export const addStaff = async (Data: any) => {
   }
 };
 
+export  const deleteStaff = async (userId: string) => {
+  try {
+    console.log("Deleting user with ID:", userId);
+    let response = await axios.delete(`/api/users/users/${userId}/`);
+    console.log("Response from deleteStaff:", response);
+    return response;
+  } catch (error: any) {
+    if (error.response) {
+      console.log("Backend Error:", error.response.data);
+      return error.response.data;
+    } else {
+      console.log("Error:", error.message);
+      return { message: error.message };
+    }
+}
+};
 export const addCustomer = async (Data: any) => {
   try {
     console.log("Data", Data);
@@ -44,7 +61,7 @@ export const getCustomer = async () => {
 
 export const getBrand = async () => {
   try {
-    const response = await axios.get(`/interaction/user/interactions/brands/`);
+    const response = await axios.get(`/interaction/user/interactions/variants/`);
     return response.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to fetch brand" };
@@ -142,5 +159,22 @@ export const addService = async (Data: any) => {
     return response.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to fetch dashboard data" };
+  }
+ }
+
+ export const SMSperiod = async (Data: any) => {
+  try {
+      console.log("Data sms frequecny", Data);
+    const response = await axios.patch(`/api/my-service-center/sms-frequency/`, Data);
+    console.log("response", response);
+    return response;
+  } catch (error) {
+    if (error.response) {
+      console.log("Backend Error:", error.response.data);
+      return error.response.data;
+    } else {
+      console.log("Error:", error.message);
+      return { message: error.message };
+    }
   }
  }

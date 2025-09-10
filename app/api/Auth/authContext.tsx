@@ -1,14 +1,3 @@
-// import { createContext } from 'react';
-
-// const AuthContext = createContext({
-//   user: null,
-//   login: (token: string, user: any) => {},
-//   logout: () => {},
-//   loading: true,
-// });
-
-// export default AuthContext;
-// contexts/AuthContext.tsx
 import { createContext, useContext } from 'react';
 
 type AuthContextType = {

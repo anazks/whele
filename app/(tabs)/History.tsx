@@ -1,4 +1,5 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,43 +27,37 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const isFocused = useIsFocused();
 
   useEffect(() => {
     fetchServices();
   }, []);
 
+  // Add this useEffect to handle screen focus
+  useEffect(() => {
+    if (isFocused) {
+      fetchServices();
+    }
+  }, [isFocused]);
+
   const fetchServices = async () => {
     try {
       setLoading(true);
       const response = await getServices();
-      console.log('Fetched services:', response);
-      console.log('Response type:', typeof response);
-      console.log('Response keys:', Object.keys(response || {}));
       
       // Handle different response structures
       let servicesData = [];
       if (Array.isArray(response)) {
-        // Direct array response
         servicesData = response;
       } else if (response && response.data && Array.isArray(response.data)) {
-        // Response with data property
         servicesData = response.data;
       } else if (response && Array.isArray(response.results)) {
-        // Response with results property
         servicesData = response.results;
       } else if (response && response.services && Array.isArray(response.services)) {
-        // Response with services property
         servicesData = response.services;
       }
       
-      console.log('Processed services data:', servicesData);
-      console.log('Services count:', servicesData.length);
-      
       setServices(servicesData);
-      
-      if (servicesData.length === 0) {
-        console.log('No services found in response');
-      }
     } catch (error) {
       console.error('Error fetching services:', error);
       Alert.alert('Error', 'Failed to fetch services: ' + error.message);
@@ -115,56 +110,50 @@ export default function History() {
     new Date(b.service_date || b.created_at) - new Date(a.service_date || a.created_at)
   );
 
-  console.log('Services state:', services.length);
-  console.log('Filtered services:', filteredServices.length);
-  console.log('Sorted services:', sortedServices.length);
-  console.log('Search query:', searchQuery);
-
- const handleShare = async () => {
-  try {
-    if (!selectedService) return;
-    
-    const message = `Service Details:
-    Vehicle: ${selectedService.vehicle_number}
-    Customer: ${selectedService.customer_name}
-    Service: ${selectedService.service_type_display}
-    Date: ${selectedService.service_date}
-    Amount: ₹${selectedService.price}
-    Status: Completed`;
-    
-    // Correct WhatsApp URL format
-    const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}&phone=+91${selectedService.customer_phone}`;
-    
-    // Try to open WhatsApp
-    const canOpen = await Linking.canOpenURL(whatsappUrl);
-    
-    if (canOpen) {
-      await Linking.openURL(whatsappUrl);
-    } else {
-      // If WhatsApp is not installed, show an alert
-      Alert.alert(
-        'WhatsApp Not Installed',
-        'Would you like to share via another method?',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel'
-          },
-          {
-            text: 'Share via SMS',
-            onPress: () => {
-              const smsUrl = `sms:+91${selectedService.customer_phone}?body=${encodeURIComponent(message)}`;
-              Linking.openURL(smsUrl);
+  const handleShare = async () => {
+    try {
+      if (!selectedService) return;
+      
+      const message = `Service Details:
+      Vehicle: ${selectedService.vehicle_number}
+      Customer: ${selectedService.customer_name}
+      Service: ${selectedService.service_type_display}
+      Date: ${selectedService.service_date}
+      Amount: ₹${selectedService.price}
+      Status: Completed`;
+      
+      // Correct WhatsApp URL format
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}&phone=+91${selectedService.customer_phone}`;
+      
+      // Try to open WhatsApp
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
+      
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        // If WhatsApp is not installed, show an alert
+        Alert.alert(
+          'WhatsApp Not Installed',
+          'Would you like to share via another method?',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            },
+            {
+              text: 'Share via SMS',
+              onPress: () => {
+                const smsUrl = `sms:+91${selectedService.customer_phone}?body=${encodeURIComponent(message)}`;
+                Linking.openURL(smsUrl);
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to share service details');
     }
-  } catch (error) {
-    console.error('Error sharing service details:', error);
-    Alert.alert('Error', 'Failed to share service details');
-  }
-};
+  };
 
   const renderServiceItem = ({ item }) => (
     <TouchableOpacity 
@@ -190,7 +179,9 @@ export default function History() {
       <Text style={styles.serviceType}>{item.service_type_display}</Text>
       
       <View style={styles.serviceFooter}>
-        <Text style={styles.dateText}>{new Date(item.service_date).toLocaleDateString()}</Text>
+        <Text style={styles.dateText}>
+          {item.service_date ? new Date(item.service_date).toLocaleDateString() : 'N/A'}
+        </Text>
         <Text style={styles.amountText}>₹{item.price}</Text>
       </View>
     </TouchableOpacity>
@@ -283,8 +274,8 @@ export default function History() {
                     <DetailRow label="Phone:" value={selectedService.customer_phone} />
                     <DetailRow label="Vehicle Model:" value={selectedService.vehicle_model} />
                     <DetailRow label="Service Type:" value={selectedService.service_type_display} />
-                    <DetailRow label="Service Date:" value={new Date(selectedService.service_date).toLocaleDateString()} />
-                    <DetailRow label="Date of Entry:" value={new Date(selectedService.date_of_entry).toLocaleDateString()} />
+                    <DetailRow label="Service Date:" value={selectedService.service_date ? new Date(selectedService.service_date).toLocaleDateString() : 'N/A'} />
+                    <DetailRow label="Date of Entry:" value={selectedService.date_of_entry ? new Date(selectedService.date_of_entry).toLocaleDateString() : 'N/A'} />
                     <DetailRow label="Technician:" value={selectedService.performed_by_name} />
                     <DetailRow label="Service Center:" value={selectedService.service_center_name} />
                     
@@ -301,7 +292,7 @@ export default function History() {
                     </View>
                     
                     <DetailRow label="Description:" value={selectedService.description} />
-                    <DetailRow label="Next Service Due:" value={new Date(selectedService.next_service_due_date).toLocaleDateString()} />
+                    <DetailRow label="Next Service Due:" value={selectedService.next_service_due_date ? new Date(selectedService.next_service_due_date).toLocaleDateString() : 'N/A'} />
                     
                     <TouchableOpacity 
                       style={styles.shareButton}

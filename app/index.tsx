@@ -1,5 +1,5 @@
-import { Redirect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Redirect } from 'expo-router';
 
 import React, { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
@@ -20,7 +20,6 @@ export default function Index() {
           setHasToken(false);
         }
       } catch (error) {
-        console.error('Error checking authentication:', error);
         setHasToken(false);
       } finally {
         setIsLoading(false);

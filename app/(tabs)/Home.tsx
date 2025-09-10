@@ -1,23 +1,29 @@
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   Linking,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import { getProfile } from '../api/Services/AuthService';
 import { Dashboard, dashBoardMonthly, getCustomer, upcommingServices } from '../api/Services/management';
 import { ExtractToken } from '../api/Services/TokenExtract';
+import { translations } from '../Languge/Languages'; // Update this path
+import AddVehicle from '../Screen/Owner/AddVehicle';
 
 const { width } = Dimensions.get('window');
 
@@ -68,7 +74,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [recentCustomers, setRecentCustomers] = useState<Customer[]>([]);
   const [customersLoading, setCustomersLoading] = useState(true);
-  const[role,setRole] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState('english');
   
   // New state for dashboard data
   const [dashboardData, setDashboardData] = useState<DashboardData>({
@@ -79,6 +86,42 @@ export default function Home() {
   const [upcomingServicesData, setUpcomingServicesData] = useState<UpcomingService[]>([]);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(true);
+
+  // Add Vehicle Modal State
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [selectedCustomerForVehicle, setSelectedCustomerForVehicle] = useState<Customer | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [filteredRecentCustomers, setFilteredRecentCustomers] = useState<Customer[]>([]);
+
+  // Translation function
+  const t = (key) => {
+    return translations[currentLanguage][key] || key;
+  };
+
+  // Load language preference
+  const loadLanguagePreference = async () => {
+    try {
+      const savedLanguage = await AsyncStorage.getItem('appLanguage');
+      if (savedLanguage) {
+        setCurrentLanguage(savedLanguage);
+      }
+    } catch (error) {
+      alert('Failed to load language preference');
+    }
+  };
+
+  // Filter customers based on search query
+  useEffect(() => {
+    if (customerSearchQuery) {
+      const filtered = recentCustomers.filter(customer => 
+        customer.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+        customer.phone.includes(customerSearchQuery)
+      );
+      setFilteredRecentCustomers(filtered);
+    } else {
+      setFilteredRecentCustomers(recentCustomers);
+    }
+  }, [customerSearchQuery, recentCustomers]);
 
   // Updated stats to use real data
   const stats = {
@@ -93,6 +136,20 @@ export default function Home() {
   const handleCall = useCallback((phoneNumber: string) => {
     Linking.openURL(`tel:${phoneNumber}`);
   }, []);
+
+  // Function to handle adding a vehicle for a customer
+  const handleAddVehicleForCustomer = (customer: Customer) => {
+    setSelectedCustomerForVehicle(customer);
+    setShowAddVehicleModal(true);
+  };
+
+  // Function to handle vehicle addition completion
+  const handleVehicleAdded = (vehicleData: any) => {
+    setShowAddVehicleModal(false);
+    setSelectedCustomerForVehicle(null);
+    // Refresh data to show the new vehicle
+    onRefresh();
+  };
 
   const checkSubscriptionStatus = useCallback((profileData: any) => {
     const hasAccess = profileData?.is_trial_active || profileData?.is_subscription_active;
@@ -138,7 +195,7 @@ export default function Home() {
         setDashboardData(response);
       }
     } catch (error) {
-      console.error('Error fetching monthly stats:', error);
+      Alert.alert(t('error'), t('failedFetchStats'));
     }
   }, []);
 
@@ -158,6 +215,8 @@ export default function Home() {
   const fetchUserData = useCallback(async () => {
     try {
       setIsLoading(true);
+      await loadLanguagePreference(); // Load language preference first
+      
       const response = await ExtractToken();
       setRole(response?.role || null);
       if (response?.id) {
@@ -198,6 +257,7 @@ export default function Home() {
         // Get only the first 5 customers for recent display
         const limitedCustomers = response.slice(0, 5);
         setRecentCustomers(limitedCustomers);
+        setFilteredRecentCustomers(limitedCustomers);
       } else {
         console.error('Failed to fetch customers');
         setTotalCustomers(0);
@@ -265,11 +325,11 @@ export default function Home() {
     const diffMinutes = Math.floor(diffTime / (1000 * 60));
 
     if (diffDays > 0) {
-      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      return `${diffDays} ${diffDays > 1 ? t('days') : t('day')} ${t('ago')}`;
     } else if (diffHours > 0) {
-      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      return `${diffHours} ${diffHours > 1 ? t('hours') : t('hour')} ${t('ago')}`;
     } else {
-      return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+      return `${diffMinutes} ${diffMinutes > 1 ? t('minutes') : t('minute')} ${t('ago')}`;
     }
   };
 
@@ -293,7 +353,7 @@ export default function Home() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={{ marginTop: 10 }}>Loading dashboard...</Text>
+        <Text style={{ marginTop: 10 }}>{t('loadingDashboard')}</Text>
       </View>
     );
   }
@@ -310,25 +370,25 @@ export default function Home() {
         transform: [{ translateY: headerTranslateY }]
       }]}>
         <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.greeting}>{t('welcomeBack')}</Text>
           <Text style={styles.shopName}>{userData.service_center_name || userData.name || 'LINJU Wheel Service'}</Text>
           
           {/* Subscription Status Display */}
           <View style={styles.subscriptionContainer}>
             {userData.is_trial_active && (
               <View style={styles.subscriptionStatus}>
-                <Text style={styles.trialIndicator}>Trial Active</Text>
+                <Text style={styles.trialIndicator}>{t('trialActive')}</Text>
                 <Text style={styles.expiryText}>
-                  Expires: {formatExpiryDate(userData.trial_ends_at || '')}
+                  {t('expires')}: {formatExpiryDate(userData.trial_ends_at || '')}
                 </Text>
               </View>
             )}
             
             {userData.is_subscription_active && (
               <View style={styles.subscriptionStatus}>
-                <Text style={styles.subscriptionIndicator}>Subscription Active</Text>
+                <Text style={styles.subscriptionIndicator}>{t('subscriptionActive')}</Text>
                 <Text style={styles.expiryText}>
-                  Valid until: {formatExpiryDate(userData.subscription_valid_until || '')}
+                  {t('validUntil')}: {formatExpiryDate(userData.subscription_valid_until || '')}
                 </Text>
               </View>
             )}
@@ -360,12 +420,12 @@ export default function Home() {
         {
           role === 'centeradmin' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Business Overview</Text>
+              <Text style={styles.sectionTitle}>{t('businessOverview')}</Text>
               <View style={styles.statsContainer}>
                 <View style={[styles.statCard, { backgroundColor: '#eff6ff' }]}>
                   <View style={styles.statContent}>
                     <Text style={[styles.statNumber, { color: '#2563eb' }]}>{stats.totalCustomers}</Text>
-                    <Text style={styles.statLabel}>Total Customers</Text>
+                    <Text style={styles.statLabel}>{t('totalCustomers')}</Text>
                   </View>
                   <MaterialIcons name="people" size={28} color="#2563eb" />
                 </View>
@@ -373,7 +433,7 @@ export default function Home() {
                 <View style={[styles.statCard, { backgroundColor: '#f0fdf4' }]}>
                   <View style={styles.statContent}>
                     <Text style={[styles.statNumber, { color: '#16a34a' }]}>{stats.totalServices}</Text>
-                    <Text style={styles.statLabel}>Services Done</Text>
+                    <Text style={styles.statLabel}>{t('servicesDone')}</Text>
                   </View>
                   <MaterialIcons name="build" size={28} color="#16a34a" />
                 </View>
@@ -381,7 +441,7 @@ export default function Home() {
                 <View style={[styles.statCard, { backgroundColor: '#fefce8' }]}>
                   <View style={styles.statContent}>
                     <Text style={[styles.statNumber, { color: '#ca8a04' }]}>{upcomingServicesData.length}</Text>
-                    <Text style={styles.statLabel}>Upcoming Services</Text>
+                    <Text style={styles.statLabel}>{t('upcomingServices')}</Text>
                   </View>
                   <MaterialIcons name="schedule" size={28} color="#ca8a04" />
                 </View>
@@ -391,7 +451,7 @@ export default function Home() {
                     <Text style={[styles.statNumber, { color: '#9333ea', fontSize: 20 }]}>
                       {formatCurrency(stats.revenue)}
                     </Text>
-                    <Text style={styles.statLabel}>Monthly Revenue</Text>
+                    <Text style={styles.statLabel}>{t('monthlyRevenue')}</Text>
                   </View>
                   <FontAwesome5 name="rupee-sign" size={24} color="#9333ea" />
                 </View>
@@ -399,49 +459,11 @@ export default function Home() {
             </View>
           )
         }
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Overview</Text>
-          <View style={styles.statsContainer}>
-            <View style={[styles.statCard, { backgroundColor: '#eff6ff' }]}>
-              <View style={styles.statContent}>
-                <Text style={[styles.statNumber, { color: '#2563eb' }]}>{stats.totalCustomers}</Text>
-                <Text style={styles.statLabel}>Total Customers</Text>
-              </View>
-              <MaterialIcons name="people" size={28} color="#2563eb" />
-            </View>
-            
-            <View style={[styles.statCard, { backgroundColor: '#f0fdf4' }]}>
-              <View style={styles.statContent}>
-                <Text style={[styles.statNumber, { color: '#16a34a' }]}>{stats.totalServices}</Text>
-                <Text style={styles.statLabel}>Services Done</Text>
-              </View>
-              <MaterialIcons name="build" size={28} color="#16a34a" />
-            </View>
-            
-            <View style={[styles.statCard, { backgroundColor: '#fefce8' }]}>
-              <View style={styles.statContent}>
-                <Text style={[styles.statNumber, { color: '#ca8a04' }]}>{upcomingServicesData.length}</Text>
-                <Text style={styles.statLabel}>Upcoming Services</Text>
-              </View>
-              <MaterialIcons name="schedule" size={28} color="#ca8a04" />
-            </View>
-            
-            <View style={[styles.statCard, { backgroundColor: '#faf5ff' }]}>
-              <View style={styles.statContent}>
-                <Text style={[styles.statNumber, { color: '#9333ea', fontSize: 20 }]}>
-                  {formatCurrency(stats.revenue)}
-                </Text>
-                <Text style={styles.statLabel}>Monthly Revenue</Text>
-              </View>
-              <FontAwesome5 name="rupee-sign" size={24} color="#9333ea" />
-            </View>
-          </View>
-        </View> */}
 
         {/* Service Types Breakdown - New section */}
         {dashboardData.service_types && dashboardData.service_types.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Service Types This Month</Text>
+            <Text style={styles.sectionTitle}>{t('serviceTypesThisMonth')}</Text>
             <View style={styles.serviceTypesContainer}>
               {dashboardData.service_types.map((service, index) => (
                 <View key={index} style={styles.serviceTypeCard}>
@@ -459,7 +481,7 @@ export default function Home() {
                   </View>
                   <View style={styles.serviceTypeInfo}>
                     <Text style={styles.serviceTypeName}>{service.service_type}</Text>
-                    <Text style={styles.serviceTypeCount}>{service.count} services</Text>
+                    <Text style={styles.serviceTypeCount}>{service.count} {t('services')}</Text>
                   </View>
                 </View>
               ))}
@@ -475,8 +497,8 @@ export default function Home() {
                 <MaterialIcons name="person-add" size={32} color="#ffffff" />
               </View>
               <View style={styles.ctaText}>
-                <Text style={styles.ctaTitle}>Add New Customer</Text>
-                <Text style={styles.ctaSubtitle}>Register a new customer and their vehicle details</Text>
+                <Text style={styles.ctaTitle}>{t('addNewCustomer')}</Text>
+                <Text style={styles.ctaSubtitle}>{t('registerNewCustomer')}</Text>
               </View>
             </View>
             <TouchableOpacity 
@@ -486,7 +508,7 @@ export default function Home() {
               }}
               activeOpacity={0.8}
             >
-              <Text style={styles.ctaButtonText}>Add Customer</Text>
+              <Text style={styles.ctaButtonText}>{t('addCustomer')}</Text>
               <MaterialIcons name="arrow-forward" size={20} color="#ffffff" />
             </TouchableOpacity>
           </View>
@@ -495,69 +517,96 @@ export default function Home() {
         {/* Recent Customers */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Customers</Text>
+            <Text style={styles.sectionTitle}>{t('recentCustomers')}</Text>
             <TouchableOpacity 
               style={styles.viewAllButton}
-              onPress={() => router.push('/Screen/Owner/CustomerList')}
+             
             >
-              <Text style={styles.viewAllText}>View All</Text>
+              <Text style={styles.viewAllText}>{t('viewAll')}</Text>
               <MaterialIcons name="chevron-right" size={18} color="#2563eb" />
             </TouchableOpacity>
+          </View>
+          
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <MaterialIcons name="search" size={20} color="#64748b" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('searchPlaceholder')}
+              placeholderTextColor="#94a3b8"
+              value={customerSearchQuery}
+              onChangeText={setCustomerSearchQuery}
+            />
+            {customerSearchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setCustomerSearchQuery('')}>
+                <MaterialIcons name="close" size={20} color="#64748b" />
+              </TouchableOpacity>
+            )}
           </View>
           
           <View style={styles.customersContainer}>
             {customersLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#2563eb" />
-                <Text style={styles.loadingText}>Loading customers...</Text>
+                <Text style={styles.loadingText}>{t('loadingCustomers')}</Text>
               </View>
-            ) : recentCustomers.length > 0 ? (
-              recentCustomers.map((customer, index) => (
-                <TouchableOpacity 
-                  key={customer.id} 
-                  style={[
-                    styles.customerCard,
-                    index === recentCustomers.length - 1 && { borderBottomWidth: 0 }
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    router.push({
-                      pathname: '/Screen/Owner/CustomerDetails',
-                      params: { customerId: customer.id }
-                    });
-                  }}
-                >
-                  <View style={styles.customerAvatar}>
-                    <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
-                  </View>
-                  <View style={styles.customerInfo}>
-                    <Text style={styles.customerName}>{customer.name}</Text>
-                    <Text style={styles.phoneNumber}>{customer.phone}</Text>
-                    <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
-                    <Text style={styles.addedTime}>Added {formatDate(customer.date_added)}</Text>
-                  </View>
-                  <View style={styles.customerActions}>
-                    <TouchableOpacity 
-                      style={styles.actionIcon}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleCall(customer.phone);
-                      }}
-                    >
-                      <MaterialIcons name="phone" size={20} color="#16a34a" />
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
+            ) : filteredRecentCustomers.length > 0 ? (
+              filteredRecentCustomers.map((customer, index) => (
+                <View key={customer.id} style={styles.customerCardWrapper}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.customerCard,
+                      index === filteredRecentCustomers.length - 1 && { borderBottomWidth: 0 }
+                    ]}
+                    activeOpacity={0.8}
+                   
+                  >
+                    <View style={styles.customerAvatar}>
+                      <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.customerInfo}>
+                      <Text style={styles.customerName}>{customer.name}</Text>
+                      <Text style={styles.phoneNumber}>{customer.phone}</Text>
+                      <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
+                      <Text style={styles.addedTime}>{t('added')} {formatDate(customer.date_added)}</Text>
+                    </View>
+                    <View style={styles.customerActions}>
+                      <TouchableOpacity 
+                        style={styles.actionIcon}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleCall(customer.phone);
+                        }}
+                      >
+                        <MaterialIcons name="phone" size={20} color="#16a34a" />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                  
+                  {/* Add Vehicle Button */}
+                  <TouchableOpacity
+                    style={styles.addVehicleButton}
+                    onPress={() => handleAddVehicleForCustomer(customer)}
+                  >
+                    <MaterialIcons name="directions-car" size={18} color="#ffffff" />
+                    <Text style={styles.addVehicleButtonText}>{t('addVehicle')}</Text>
+                  </TouchableOpacity>
+                </View>
               ))
+            ) : customerSearchQuery ? (
+              <View style={styles.emptyContainer}>
+                <MaterialIcons name="search-off" size={40} color="#ccc" />
+                <Text style={styles.emptyText}>{t('noResults')}</Text>
+              </View>
             ) : (
               <View style={styles.emptyContainer}>
                 <MaterialIcons name="people-outline" size={40} color="#ccc" />
-                <Text style={styles.emptyText}>No customers found</Text>
+                <Text style={styles.emptyText}>{t('noCustomers')}</Text>
                 <TouchableOpacity 
                   style={styles.addFirstCustomerBtn}
                   onPress={() => router.push('/Screen/Owner/CustomerAdd')}
                 >
-                  <Text style={styles.addFirstCustomerText}>Add your first customer</Text>
+                  <Text style={styles.addFirstCustomerText}>{t('addFirstCustomer')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -565,22 +614,22 @@ export default function Home() {
         </View>
 
         {/* Quick Insights - Updated with real data */}
-{
+        {
           role === 'centeradmin' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Quick Insights</Text>
+              <Text style={styles.sectionTitle}>{t('quickInsights')}</Text>
               <View style={styles.insightsContainer}>
                 <View style={styles.insightCard}>
                   <MaterialIcons name="trending-up" size={24} color="#16a34a" />
                   <Text style={styles.insightText}>
-                    {stats.totalServices} services completed this month
+                    {stats.totalServices} {t('servicesCompleted')}
                   </Text>
                 </View>
                 {upcomingServicesData.length > 0 && (
                   <View style={styles.insightCard}>
                     <MaterialIcons name="schedule" size={24} color="#ca8a04" />
                     <Text style={styles.insightText}>
-                      {upcomingServicesData.length} upcoming service{upcomingServicesData.length !== 1 ? 's' : ''} scheduled
+                      {upcomingServicesData.length} {t('upcomingServicesScheduled')}
                     </Text>
                   </View>
                 )}
@@ -588,46 +637,48 @@ export default function Home() {
                   <View style={styles.insightCard}>
                     <FontAwesome5 name="rupee-sign" size={20} color="#9333ea" />
                     <Text style={styles.insightText}>
-                      {formatCurrency(stats.revenue)} revenue generated this month
+                      {formatCurrency(stats.revenue)} {t('revenueGenerated')}
                     </Text>
                   </View>
                 )}
               </View>
             </View>
           )
-}
-
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Insights</Text>
-          <View style={styles.insightsContainer}>
-            <View style={styles.insightCard}>
-              <MaterialIcons name="trending-up" size={24} color="#16a34a" />
-              <Text style={styles.insightText}>
-                {stats.totalServices} services completed this month
-              </Text>
-            </View>
-            {upcomingServicesData.length > 0 && (
-              <View style={styles.insightCard}>
-                <MaterialIcons name="schedule" size={24} color="#ca8a04" />
-                <Text style={styles.insightText}>
-                  {upcomingServicesData.length} upcoming service{upcomingServicesData.length !== 1 ? 's' : ''} scheduled
-                </Text>
-              </View>
-            )}
-            {stats.revenue > 0 && (
-              <View style={styles.insightCard}>
-                <FontAwesome5 name="rupee-sign" size={20} color="#9333ea" />
-                <Text style={styles.insightText}>
-                  {formatCurrency(stats.revenue)} revenue generated this month
-                </Text>
-              </View>
-            )}
-          </View>
-        </View> */}
+        }
 
         {/* Empty space at bottom */}
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* Add Vehicle Modal */}
+      <Modal
+        visible={showAddVehicleModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAddVehicleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {t('addVehicleFor')} {selectedCustomerForVehicle?.name}
+              </Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowAddVehicleModal(false)}
+              >
+                <MaterialIcons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            
+            <AddVehicle 
+              onVehicleAdded={handleVehicleAdded}
+              onCancel={() => setShowAddVehicleModal(false)}
+              preselectedCustomer={selectedCustomerForVehicle}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -866,12 +917,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     minHeight: 100,
   },
+  customerCardWrapper: {
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   customerCard: {
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
   },
   customerAvatar: {
     width: 48,
@@ -921,6 +981,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addVehicleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563eb',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  addVehicleButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   viewAllButton: {
     flexDirection: 'row',
@@ -982,5 +1055,54 @@ const styles = StyleSheet.create({
   addFirstCustomerText: {
     color: '#ffffff',
     fontWeight: '600',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+    flex: 1,
+  },
+  closeButton: {
+    padding: 4,
   },
 });

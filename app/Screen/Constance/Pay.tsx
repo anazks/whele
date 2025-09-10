@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   SafeAreaView,
   ScrollView,
@@ -32,6 +33,7 @@ export default function Pay() {
 
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isTrialPlan, setIsTrialPlan] = useState(false);
 
   console.log('Received payment parameters:', {
     planId,
@@ -43,11 +45,27 @@ export default function Pay() {
     description
   });
 
+  // Check if this is a trial plan (amount is 0)
+  useEffect(() => {
+    const planAmount = parseInt(amount || 0);
+    if (planAmount === 0) {
+      setIsTrialPlan(true);
+      Alert.alert(
+        'Trial Plan',
+        'Trial plans don\'t require payment. You will be redirected to activate your trial.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    }
+  }, [amount]);
+
   const checkSubscriptionStatus = (profileData) => {
     return profileData?.can_access_service || false;
   };
 
   useEffect(() => {
+    // Don't proceed if it's a trial plan
+    if (isTrialPlan) return;
+
     const fetchUserData = async () => {
       try {
         const response = await ExtractToken();
@@ -70,7 +88,6 @@ export default function Pay() {
           });
         }
       } catch (error) {
-        console.error('Error fetching user data:', error);
         // Set demo data on error for testing
         setUserData({
           id: 'demo',
@@ -90,147 +107,151 @@ export default function Pay() {
     };
 
     fetchUserData();
-  }, []);
+  }, [isTrialPlan]);
 
-const handlePayment = async () => {
-  try {
-    setLoading(true);
-    
-    // Validate required data before proceeding
-    if (!amount || !userData) {
-      alert('Payment details are incomplete. Please try again.');
-      setLoading(false);
+  const handlePayment = async () => {
+    // Don't proceed if it's a trial plan
+    if (isTrialPlan) {
+      router.back();
       return;
     }
 
-    const numericAmount = parseInt(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      alert('Invalid amount. Please check the payment details.');
-      setLoading(false);
-      return;
-    }
-    
-    const paymentData = {
-      planId,
-      planName,
-      amount: numericAmount,
-      currency: currency || 'INR',
-      duration,
-      planType,
-      description,
-      userData
-    };
-    
-    console.log('Processing payment with data:', paymentData);
-    
-    // Create order first
-    const response = await createOrder(numericAmount);
-    console.log('Order creation response:---', response);
-    
-    if (!response?.data?.order_id) {
-      alert('Failed to create order. Please try again.');
-      setLoading(false);
-      return;
-    }
-    
-    // Extract order details from response
-    const { 
-      order_id, 
-      amount: orderAmount, 
-      currency: orderCurrency, 
-      key_id
-    } = response.data.data;
-    
-    // Validate order response
-    if (!order_id || !key_id) {
-      alert('Invalid order response. Please contact support.');
-      setLoading(false);
-      return;
-    }
+    try {
+      setLoading(true);
+      
+      // Validate required data before proceeding
+      if (!amount || !userData) {
+        alert('Payment details are incomplete. Please try again.');
+        setLoading(false);
+        return;
+      }
 
-    // Clean phone number (remove any non-numeric characters except +)
-    const cleanPhone = userData.phone?.replace(/[^\d+]/g, '') || '';
-    
-    // Razorpay checkout options
-    const options = {
-      description: `${planName || 'Premium Plan'} - ${duration} month subscription`,
-      image: 'https://your-logo-url.com/logo.png', // Replace with your actual logo URL
-      order_id: order_id, // This is the most critical field
-      key: key_id, // Use the key from your backend response
-      amount: Math.round(orderAmount * 100), // Amount in paise
-      currency: orderCurrency || 'INR',
-      name: 'Wheel Alignment Service', // Your business name
-      prefill: {
-        name: userData.name || '',
-        email: userData.email || '',
-        contact: cleanPhone
-      },
-      theme: { 
-        color: '#4285f4' 
-      },
-      modal: {
-        ondismiss: () => {
-          console.log('Razorpay modal dismissed');
-          setLoading(false);
+      const numericAmount = parseInt(amount);
+      if (isNaN(numericAmount) || numericAmount <= 0) {
+        alert('Invalid amount. Please check the payment details.');
+        setLoading(false);
+        return;
+      }
+      
+      const paymentData = {
+        planId,
+        planName,
+        amount: numericAmount,
+        currency: currency || 'INR',
+        duration,
+        planType,
+        description,
+        userData
+      };
+      
+      console.log('Processing payment with data:', paymentData);
+      
+      // Create order first
+      const response = await createOrder(numericAmount);
+      console.log('Order creation response:---', response);
+      
+      if (!response?.data?.order_id) {
+        alert('Failed to create order. Please try again.');
+        setLoading(false);
+        return;
+      }
+      
+      // Extract order details from response
+      const { 
+        order_id, 
+        amount: orderAmount, 
+        currency: orderCurrency, 
+        key_id
+      } = response.data.data;
+      
+      // Validate order response
+      if (!order_id || !key_id) {
+        alert('Invalid order response. Please contact support.');
+        setLoading(false);
+        return;
+      }
+
+      // Clean phone number (remove any non-numeric characters except +)
+      const cleanPhone = userData.phone?.replace(/[^\d+]/g, '') || '';
+      
+      // Razorpay checkout options
+      const options = {
+        description: `${planName || 'Premium Plan'} - ${duration} month subscription`,
+        image: 'https://your-logo-url.com/logo.png', // Replace with your actual logo URL
+        order_id: order_id, // This is the most critical field
+        key: key_id, // Use the key from your backend response
+        amount: Math.round(orderAmount * 100), // Amount in paise
+        currency: orderCurrency || 'INR',
+        name: 'Wheel Alignment Service', // Your business name
+        prefill: {
+          name: userData.name || '',
+          email: userData.email || '',
+          contact: cleanPhone
+        },
+        theme: { 
+          color: '#4285f4' 
+        },
+        modal: {
+          ondismiss: () => {
+            console.log('Razorpay modal dismissed');
+            setLoading(false);
+          }
+        },
+        retry: {
+          enabled: true,
+          max_count: 3
         }
-      },
-      retry: {
-        enabled: true,
-        max_count: 3
+      };
+      
+      console.log('Opening Razorpay checkout with options:', options);
+      
+      // Open Razorpay checkout
+      const data = await RazorpayCheckout.open(options);
+      console.log('Razorpay checkout completed with data:', data);
+      
+      // Payment successful
+      if (data.razorpay_payment_id) {
+        console.log('Payment successful:', data);
+        let response = await verifyPayment(data)
+        console.log('Payment verification response:', response);
+        if(response?.data?.success == true && response.status == 200){
+          alert('Payment verified successfully!');
+          router.push('/(tabs)/Home')
+          return;
+        }else{
+          alert('Payment verification failed. Please contact support.');
+          return;
+        }
       }
-    };
-    
-    console.log('Opening Razorpay checkout with options:', options);
-    
-    // Open Razorpay checkout
-    const data = await RazorpayCheckout.open(options);
-    console.log('Razorpay checkout completed with data:', data);
-    
-    // Payment successful
-    if (data.razorpay_payment_id) {
-      console.log('Payment successful:', data);
-      let response = await verifyPayment(data)
-      console.log('Payment verification response:', response);
-      if(response?.data?.success == true && response.status == 200){
-        alert('Payment verified successfully!');
-         alert('Payment verified successfully!');
-        router.push('/(tabs)/Home')
-        return;
-      }else{
-        alert('Payment verification failed. Please contact support.');
-        return;
+      
+    } catch (error) {
+     
+      // Handle different types of errors
+      if (error.code) {
+        switch (error.code) {
+          case 'BAD_REQUEST_ERROR':
+            alert('Invalid request. Please check payment details.');
+            break;
+          case 'GATEWAY_ERROR':
+            alert('Payment gateway error. Please try again.');
+            break;
+          case 'NETWORK_ERROR':
+            alert('Network error. Please check your connection.');
+            break;
+          case 'SERVER_ERROR':
+            alert('Server error. Please try again later.');
+            break;
+          default:
+            alert(`Payment Error: ${error.description || error.message || 'Unknown error'}`);
+        }
+      } else {
+        // Generic error handling
+        alert('Payment failed. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
-    
-  } catch (error) {
-    console.error('Payment error:', error);
-    
-    // Handle different types of errors
-    if (error.code) {
-      switch (error.code) {
-        case 'BAD_REQUEST_ERROR':
-          alert('Invalid request. Please check payment details.');
-          break;
-        case 'GATEWAY_ERROR':
-          alert('Payment gateway error. Please try again.');
-          break;
-        case 'NETWORK_ERROR':
-          alert('Network error. Please check your connection.');
-          break;
-        case 'SERVER_ERROR':
-          alert('Server error. Please try again later.');
-          break;
-        default:
-          alert(`Payment Error: ${error.description || error.message || 'Unknown error'}`);
-      }
-    } else {
-      // Generic error handling
-      alert('Payment failed. Please try again.');
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleBack = () => {
     router.back();
@@ -261,6 +282,19 @@ const handlePayment = async () => {
   const calculateTotal = () => {
     return Math.round(parseInt(amount || 0));
   };
+
+  // Don't render the payment screen if it's a trial plan
+  if (isTrialPlan) {
+    return (
+      <View style={styles.loadingContainer}>
+        <View style={styles.loadingCard}>
+          <Text style={styles.loadingText}>
+            Redirecting from trial plan...
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
