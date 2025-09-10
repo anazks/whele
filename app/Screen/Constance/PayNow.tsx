@@ -9,6 +9,14 @@ export default function PayNow() {
   const [error, setError] = useState(null);
   const router = useRouter();
 
+  const tryAgain = async()=>{
+    try {
+      router.push('/Home')
+    } catch (error) {
+      
+    }
+  }
+
   const fetchPaymentPlans = async () => {
     try {
       setLoading(true);
@@ -24,7 +32,7 @@ export default function PayNow() {
       }
     } catch (error) {
       console.log("error", error);
-      setError("Failed to fetch payment plans");
+      setError("Somthing Went wrong");
       setPlans([]);
     } finally {
       setLoading(false);
@@ -137,7 +145,7 @@ export default function PayNow() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Oops!</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchPaymentPlans}>
+          <TouchableOpacity style={styles.retryButton} onPress={tryAgain}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>

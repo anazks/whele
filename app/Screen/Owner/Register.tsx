@@ -1,8 +1,7 @@
 import { MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Modal } from 'react-native';
 
 import {
   KeyboardAvoidingView,
@@ -16,10 +15,9 @@ import {
 } from 'react-native';
 import { register } from '../../api/Services/AuthService';
 
-// Professional color palette
+// Color palette
 const colors = {
   primary: '#1a365d',
-  secondary: '#2d3748',
   accent: '#3b82f6',
   success: '#10b981',
   danger: '#ef4444',
@@ -54,19 +52,62 @@ export default function Register() {
 
   const [focusedField, setFocusedField] = useState('');
   const [buttonPressed, setButtonPressed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
+  // Animation values for success modal
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [scaleAnim] = useState(new Animated.Value(0.8));
+
+  // --- Validation functions (unchanged) ---
   const handleChange = (name, value) => {
     setFormData({
       ...formData,
       [name]: value
     });
-    // Clear error when user types
     if (errors[name]) {
       setErrors({
         ...errors,
         [name]: ''
       });
     }
+  };
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhoneNumber = (phone) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+      return false;
+    }
+    const phonePatterns = [
+      /^\+?1?[0-9]{10}$/,
+      /^\+?[0-9]{10,15}$/,
+      /^(\+\d{1,3}[- ]?)?\d{10}$/
+    ];
+    return phonePatterns.some(pattern => pattern.test(phone));
+  };
+
+  const validatePassword = (password) => {
+    const checks = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    };
+    return {
+      isValid: checks.length && (
+        (checks.uppercase && checks.lowercase) ||
+        (checks.number) ||
+        (checks.special)
+      ),
+      checks
+    };
   };
 
   const validateForm = () => {
@@ -81,77 +122,109 @@ export default function Register() {
     };
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
+      newErrors.name = 'Service center name is required';
+      valid = false;
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Name must be at least 2 characters long';
       valid = false;
     }
-
     if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
+      newErrors.address = 'Business address is required';
+      valid = false;
+    } else if (formData.address.trim().length < 10) {
+      newErrors.address = 'Please enter a complete address';
       valid = false;
     }
-
     if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = 'Email address is required';
       valid = false;
-    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email';
-      valid = false;
-    }
-
-    if (formData.phone && !/^\+?[0-9\s-]{10,17}$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
       valid = false;
     }
-
+    if (formData.phone.trim() && !validatePhoneNumber(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number (10-15 digits)';
+      valid = false;
+    }
     if (!formData.password) {
       newErrors.password = 'Password is required';
       valid = false;
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-      valid = false;
+    } else {
+      const passwordValidation = validatePassword(formData.password);
+      if (!passwordValidation.isValid) {
+        newErrors.password = 'Password must be at least 8 characters with uppercase, lowercase, or numbers';
+        valid = false;
+      }
     }
-
-    if (formData.password !== formData.confirm_password) {
+    if (!formData.confirm_password) {
+      newErrors.confirm_password = 'Please confirm your password';
+      valid = false;
+    } else if (formData.password !== formData.confirm_password) {
       newErrors.confirm_password = 'Passwords do not match';
       valid = false;
     }
-
     setErrors(newErrors);
     return valid;
   };
 
+  const showSuccessPopup = (message) => {
+    setSuccessMessage(message);
+    setShowSuccessModal(true);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const hideSuccessPopup = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 0.8,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowSuccessModal(false);
+      router.push('/Screen/Owner/Login');
+    });
+  };
+
   const handleSubmit = async () => {
     if (validateForm()) {
-      console.log('Form submitted:', formData);
+      setIsLoading(true);
       try {
         let response = await register(formData);
-        console.log(response);
-        
         if (response.success === true) {
-          // Show success alert with the message
-          Alert.alert(
-            'Success',
-            response.message || 'Registration successful!',
-            [
-              { 
-                text: 'OK', 
-                onPress: () => router.push('/Screen/Owner/Login') 
-              }
-            ]
-          );
+          showSuccessPopup(response.message || 'Registration successful! Welcome to our platform.');
         } else {
-          // Show error alert if registration failed
           Alert.alert(
             'Registration Failed',
-            response.message || 'Please try again later.'
+            response.message || 'Please check your information and try again.',
+            [{ text: 'OK', style: 'default' }]
           );
         }
       } catch (error) {
-        console.error('Registration error:', error);
         Alert.alert(
-          'Error',
-          'An unexpected error occurred. Please try again.'
+          'Email Already Registered',
+          'Unable To Register with this email. Please use a different email address or login if you already have an account.',
+          [{ text: 'OK', style: 'default' }]
         );
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -159,9 +232,42 @@ export default function Register() {
   const getInputStyle = (fieldName) => [
     styles.input,
     focusedField === fieldName && styles.inputFocused,
-    errors[fieldName] && styles.inputError,
-    formData[fieldName] && styles.inputFilled
+    errors[fieldName] && styles.inputError
   ];
+
+  const SuccessModal = () => (
+    <Modal
+      visible={showSuccessModal}
+      transparent={true}
+      animationType="none"
+      onRequestClose={hideSuccessPopup}
+    >
+      <View style={styles.modalOverlay}>
+        <Animated.View
+          style={[
+            styles.modalContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }]
+            }
+          ]}
+        >
+          <MaterialIcons name="check-circle" size={48} color={colors.success} />
+          <Text style={styles.successTitle}>Registration Successful!</Text>
+          <Text style={styles.successMessage}>{successMessage}</Text>
+          <TouchableOpacity
+            style={styles.successButton}
+            onPress={hideSuccessPopup}
+            activeOpacity={0.85}
+            accessibilityLabel="Continue to login"
+            accessibilityHint="Navigates to the login screen"
+          >
+            <Text style={styles.successButtonText}>Continue to Login</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
 
   return (
     <KeyboardAvoidingView
@@ -169,200 +275,196 @@ export default function Register() {
       style={styles.container}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        accessible={true}
+        accessibilityLabel="Registration form"
       >
-        {/* Professional Header */}
+        {/* Simple Header Area */}
         <View style={styles.headerContainer}>
-          <LinearGradient
-            colors={[colors.primary, colors.secondary]}
-            style={styles.headerGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.headerContent}>
-              <View style={styles.iconContainer}>
-                <MaterialIcons name="business" size={32} color="white" />
-              </View>
-              <Text style={styles.header}>Service Center Registration</Text>
-              <Text style={styles.subHeader}>Create your professional account</Text>
-            </View>
-          </LinearGradient>
+          <Text style={styles.header}>Service Center Registration</Text>
+          <Text style={styles.subHeader}>Create your professional account</Text>
         </View>
 
         {/* Form Container */}
         <View style={styles.formContainer}>
-          <View style={styles.formHeader}>
-            <Text style={styles.formTitle}>Business Information</Text>
-            <Text style={styles.formSubtitle}>Please provide accurate details for verification</Text>
+          <Text style={styles.formTitle}>Business Information</Text>
+          <Text style={styles.formSubtitle}>Please provide accurate details for verification</Text>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Service Center Name*</Text>
+            <TextInput
+              style={getInputStyle('name')}
+              placeholder="Enter service center name"
+              placeholderTextColor="#94a3b8"
+              value={formData.name}
+              onChangeText={(text) => handleChange('name', text)}
+              onFocus={() => setFocusedField('name')}
+              onBlur={() => setFocusedField('')}
+              maxLength={255}
+              accessibilityLabel="Service center name"
+              accessibilityHint="Enter your business or service center name"
+              accessibilityRequired={true}
+            />
+            {errors.name ? (
+              <Text style={styles.errorText}>{errors.name}</Text>
+            ) : null}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>
-              <MaterialIcons name="business" size={16} color={colors.text.secondary} />
-              {' '}Service Center Name*
-            </Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={getInputStyle('name')}
-                placeholder="Enter service center name"
-                placeholderTextColor="#94a3b8"
-                value={formData.name}
-                onChangeText={(text) => handleChange('name', text)}
-                onFocus={() => setFocusedField('name')}
-                onBlur={() => setFocusedField('')}
-                maxLength={255}
-              />
-            </View>
-            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
+            <Text style={styles.label}>Business Address*</Text>
+            <TextInput
+              style={getInputStyle('address')}
+              placeholder="Enter complete business address"
+              placeholderTextColor="#94a3b8"
+              value={formData.address}
+              onChangeText={(text) => handleChange('address', text)}
+              onFocus={() => setFocusedField('address')}
+              onBlur={() => setFocusedField('')}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              accessibilityLabel="Business address"
+              accessibilityHint="Enter your complete business address including city and state"
+              accessibilityRequired={true}
+            />
+            {errors.address ? (
+              <Text style={styles.errorText}>{errors.address}</Text>
+            ) : null}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>
-              <MaterialIcons name="location-on" size={16} color={colors.text.secondary} />
-              {' '}Business Address*
-            </Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={getInputStyle('address')}
-                placeholder="Enter complete business address"
-                placeholderTextColor="#94a3b8"
-                value={formData.address}
-                onChangeText={(text) => handleChange('address', text)}
-                onFocus={() => setFocusedField('address')}
-                onBlur={() => setFocusedField('')}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-            {errors.address ? <Text style={styles.errorText}>{errors.address}</Text> : null}
+            <Text style={styles.label}>Official Email*</Text>
+            <TextInput
+              style={getInputStyle('email')}
+              placeholder="Enter business email address"
+              placeholderTextColor="#94a3b8"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={formData.email}
+              onChangeText={(text) => handleChange('email', text)}
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField('')}
+              accessibilityLabel="Email address"
+              accessibilityHint="Enter your business email address"
+              accessibilityRequired={true}
+            />
+            {errors.email ? (
+              <Text style={styles.errorText}>{errors.email}</Text>
+            ) : null}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>
-              <MaterialIcons name="email" size={16} color={colors.text.secondary} />
-              {' '}Official Email*
-            </Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={getInputStyle('email')}
-                placeholder="Enter business email address"
-                placeholderTextColor="#94a3b8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={formData.email}
-                onChangeText={(text) => handleChange('email', text)}
-                onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField('')}
-              />
-            </View>
-            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+            <Text style={styles.label}>Contact Number</Text>
+            <TextInput
+              style={getInputStyle('phone')}
+              placeholder="+1 (555) 123-4567"
+              placeholderTextColor="#94a3b8"
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              value={formData.phone}
+              onChangeText={(text) => handleChange('phone', text)}
+              onFocus={() => setFocusedField('phone')}
+              onBlur={() => setFocusedField('')}
+              maxLength={17}
+              accessibilityLabel="Phone number"
+              accessibilityHint="Enter your contact phone number"
+            />
+            {errors.phone ? (
+              <Text style={styles.errorText}>{errors.phone}</Text>
+            ) : null}
+          </View>
+
+          <Text style={styles.sectionTitle}>Security Credentials</Text>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Password*</Text>
+            <TextInput
+              style={getInputStyle('password')}
+              placeholder="Create a strong password (min. 8 characters)"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry
+              autoComplete="new-password"
+              value={formData.password}
+              onChangeText={(text) => handleChange('password', text)}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => setFocusedField('')}
+              accessibilityLabel="Password"
+              accessibilityHint="Create a password with at least 8 characters, including uppercase, lowercase, or numbers"
+              accessibilityRequired={true}
+            />
+            {errors.password ? (
+              <Text style={styles.errorText}>{errors.password}</Text>
+            ) : null}
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>
-              <MaterialIcons name="phone" size={16} color={colors.text.secondary} />
-              {' '}Contact Number
-            </Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={getInputStyle('phone')}
-                placeholder="+1 (555) 123-4567"
-                placeholderTextColor="#94a3b8"
-                keyboardType="phone-pad"
-                value={formData.phone}
-                onChangeText={(text) => handleChange('phone', text)}
-                onFocus={() => setFocusedField('phone')}
-                onBlur={() => setFocusedField('')}
-                maxLength={17}
-              />
-            </View>
-            {errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
-          </View>
-
-          <View style={styles.securitySection}>
-            <Text style={styles.sectionTitle}>Security Credentials</Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                <MaterialIcons name="lock" size={16} color={colors.text.secondary} />
-                {' '}Password*
-              </Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={getInputStyle('password')}
-                  placeholder="Create a strong password (min. 8 characters)"
-                  placeholderTextColor="#94a3b8"
-                  secureTextEntry
-                  value={formData.password}
-                  onChangeText={(text) => handleChange('password', text)}
-                  onFocus={() => setFocusedField('password')}
-                  onBlur={() => setFocusedField('')}
-                />
-              </View>
-              {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>
-                <MaterialIcons name="lock-outline" size={16} color={colors.text.secondary} />
-                {' '}Confirm Password*
-              </Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={getInputStyle('confirm_password')}
-                  placeholder="Re-enter your password"
-                  placeholderTextColor="#94a3b8"
-                  secureTextEntry
-                  value={formData.confirm_password}
-                  onChangeText={(text) => handleChange('confirm_password', text)}
-                  onFocus={() => setFocusedField('confirm_password')}
-                  onBlur={() => setFocusedField('')}
-                />
-              </View>
-              {errors.confirm_password ? (
-                <Text style={styles.errorText}>{errors.confirm_password}</Text>
-              ) : null}
-            </View>
+            <Text style={styles.label}>Confirm Password*</Text>
+            <TextInput
+              style={getInputStyle('confirm_password')}
+              placeholder="Re-enter your password"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry
+              autoComplete="new-password"
+              value={formData.confirm_password}
+              onChangeText={(text) => handleChange('confirm_password', text)}
+              onFocus={() => setFocusedField('confirm_password')}
+              onBlur={() => setFocusedField('')}
+              accessibilityLabel="Confirm password"
+              accessibilityHint="Re-enter the same password to confirm"
+              accessibilityRequired={true}
+            />
+            {errors.confirm_password ? (
+              <Text style={styles.errorText}>{errors.confirm_password}</Text>
+            ) : null}
           </View>
         </View>
 
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[styles.registerButton, buttonPressed && styles.registerButtonPressed]} 
+          <TouchableOpacity
+            style={[
+              styles.registerButton,
+              buttonPressed && styles.registerButtonPressed,
+              isLoading && styles.buttonDisabled
+            ]}
             onPress={handleSubmit}
             onPressIn={() => setButtonPressed(true)}
             onPressOut={() => setButtonPressed(false)}
             activeOpacity={0.9}
+            disabled={isLoading}
+            accessibilityLabel="Create account"
+            accessibilityHint="Submit the registration form to create your account"
+            accessibilityState={{ disabled: isLoading }}
           >
-            <LinearGradient
-              colors={[colors.primary, colors.secondary]}
-              style={styles.buttonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <MaterialIcons name="business-center" size={22} color="white" />
+            {isLoading ? (
+              <>
+                <ActivityIndicator size="small" color="white" />
+                <Text style={styles.registerButtonText}>Creating Account...</Text>
+              </>
+            ) : (
               <Text style={styles.registerButtonText}>Create Account</Text>
-            </LinearGradient>
+            )}
           </TouchableOpacity>
-
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Already registered? </Text>
+            <Text style={styles.loginText}>Already registered?</Text>
             <TouchableOpacity
               onPress={() => {
                 router.push('/Screen/Owner/Login');
               }}
               activeOpacity={0.7}
+              accessibilityLabel="Sign in"
+              accessibilityHint="Navigate to the login screen if you already have an account"
             >
               <Text style={styles.loginLink}>Sign In →</Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
+      <SuccessModal />
     </KeyboardAvoidingView>
   );
 }
@@ -373,183 +475,165 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContainer: {
-    paddingBottom: 80,
+    paddingBottom: 60,
   },
+
+  // Simple Header
   headerContainer: {
-    marginBottom: 30,
-  },
-  headerGradient: {
-    paddingTop: 60,
-    paddingBottom: 40,
-    paddingHorizontal: 30,
-  },
-  headerContent: {
+    backgroundColor: colors.primary,
+    paddingVertical: 36,
     alignItems: 'center',
-  },
-  iconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   header: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: 'white',
-    marginBottom: 8,
-    textAlign: 'center',
   },
   subHeader: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    fontWeight: '500',
+    fontSize: 14,
+    color: '#e5e7eb',
+    marginTop: 4,
   },
   formContainer: {
     backgroundColor: colors.surface,
-    borderRadius: 24,
-    marginHorizontal: 20,
-    padding: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 8,
-    marginBottom: 25,
-  },
-  formHeader: {
-    marginBottom: 30,
-    alignItems: 'center',
+    borderRadius: 10,
+    marginHorizontal: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 16,
   },
   formTitle: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 8,
-  },
-  formSubtitle: {
-    fontSize: 14,
-    color: colors.text.light,
+    marginBottom: 4,
     textAlign: 'center',
   },
+  formSubtitle: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text.primary,
-    marginBottom: 20,
-    paddingTop: 20,
+    marginTop: 10,
+    marginBottom: 6,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-  },
-  securitySection: {
-    marginTop: 10,
+    paddingTop: 8,
   },
   formGroup: {
-    marginBottom: 25,
+    marginBottom: 15,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.text.primary,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputContainer: {
-    position: 'relative',
+    marginBottom: 4,
   },
   input: {
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
-    padding: 18,
-    fontSize: 16,
-    backgroundColor: '#fafbfc',
+    borderRadius: 7,
+    padding: 13,
+    fontSize: 14,
+    backgroundColor: 'white',
     color: colors.text.primary,
-    minHeight: 56,
-    fontWeight: '500',
   },
   inputFocused: {
     borderColor: colors.accent,
-    backgroundColor: colors.surface,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  inputFilled: {
-    borderColor: colors.success,
-    backgroundColor: colors.surface,
   },
   inputError: {
     borderColor: colors.danger,
-    backgroundColor: '#fef7f7',
   },
   errorText: {
     color: colors.danger,
-    fontSize: 14,
-    marginTop: 8,
-    fontWeight: '500',
-    marginLeft: 4,
+    fontSize: 12,
+    marginTop: 2,
   },
   buttonContainer: {
-    marginHorizontal: 20,
-    marginTop: 10,
+    marginHorizontal: 16,
+    marginTop: 4,
   },
   registerButton: {
-    borderRadius: 18,
-    marginBottom: 25,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 7,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   registerButtonPressed: {
-    transform: [{ scale: 0.98 }],
-    shadowOpacity: 0.2,
-    elevation: 4,
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 32,
-    borderRadius: 18,
+    opacity: 0.9,
   },
   registerButtonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 10,
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: '600',
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginTop: 2,
   },
   loginText: {
     color: colors.text.secondary,
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 13,
+    marginRight: 2,
   },
   loginLink: {
-    color: colors.primary,
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 13,
+    marginLeft: 4,
+  },
+  // Success Modal Simplified
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 22,
+    alignItems: 'center',
+    width: '88%',
+  },
+  successTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    fontSize: 16,
+    color: colors.text.primary,
+    marginTop: 14,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 13,
+    color: colors.text.secondary,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 16,
+    lineHeight: 19,
+  },
+  successButton: {
+    backgroundColor: colors.success,
+    borderRadius: 7,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  successButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

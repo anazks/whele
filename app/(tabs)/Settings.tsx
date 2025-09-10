@@ -59,7 +59,7 @@ export default function Settings() {
         setCurrentLanguage(savedLanguage);
       }
     } catch (error) {
-      console.error('Error loading language preference:', error);
+      console.log('Error loading language preference:', error);
     }
   };
 
@@ -68,7 +68,7 @@ export default function Settings() {
       await AsyncStorage.setItem('appLanguage', language);
       setCurrentLanguage(language);
     } catch (error) {
-      console.error('Error saving language preference:', error);
+      console.log('Error saving language preference:', error);
     }
   };
 
@@ -173,7 +173,7 @@ export default function Settings() {
               // Navigate to login screen and clear navigation history
               router.replace('/Screen/Owner/Login');
             } catch (error) {
-              console.error('Logout error:', error);
+              console.log('Logout error:', error);
               Alert.alert(t("error"), t("logoutError"));
             }
           }

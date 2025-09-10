@@ -5,6 +5,7 @@ export const register = async (userData: any) => {
   try {
     console.log('Registering user with data:', userData);
     const response = await Axios.post('/api/service-centers/register/', userData);
+    console.log('Registration response:', response);
     return response.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Registration failed" };

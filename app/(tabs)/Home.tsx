@@ -1,6 +1,6 @@
 import { FontAwesome5, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -109,7 +109,17 @@ export default function Home() {
       alert('Failed to load language preference');
     }
   };
-
+// Add this function alongside handleAddVehicleForCustomer
+const handleAddServiceForCustomer = (customer: Customer) => {
+  router.push({
+    pathname: '/Screen/Owner/AddService',
+    params: { 
+      customerId: customer.id.toString(),
+      customerName: customer.name,
+      customerPhone: customer.phone
+    }
+  });
+};
   // Filter customers based on search query
   useEffect(() => {
     if (customerSearchQuery) {
@@ -180,7 +190,7 @@ export default function Home() {
         }));
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.log(error)
     } finally {
       setDashboardLoading(false);
     }
@@ -208,7 +218,7 @@ export default function Home() {
         setUpcomingServicesData(response);
       }
     } catch (error) {
-      console.error('Error fetching upcoming services:', error);
+      console.log('Error fetching upcoming services:', error);
     }
   }, []);
 
@@ -238,7 +248,7 @@ export default function Home() {
         }
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.log('Error fetching user data:', error);
       router.replace('/Screen/Constance/PayNow');
     } finally {
       setRefreshing(false);
@@ -259,32 +269,23 @@ export default function Home() {
         setRecentCustomers(limitedCustomers);
         setFilteredRecentCustomers(limitedCustomers);
       } else {
-        console.error('Failed to fetch customers');
+        console.log('Failed to fetch customers');
         setTotalCustomers(0);
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.log('Error fetching customers:', error);
       setTotalCustomers(0);
     } finally {
       setCustomersLoading(false);
     }
   }, []);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    Promise.all([
-      fetchUserData(),
-      fetchRecentCustomers(),
-      fetchDashboardData(),
-      fetchMonthlyStats(),
-      fetchUpcomingServices()
-    ]).finally(() => {
-      setRefreshing(false);
-    });
-  }, [fetchUserData, fetchRecentCustomers, fetchDashboardData, fetchMonthlyStats, fetchUpcomingServices]);
-
-  useEffect(() => {
-    const initializeData = async () => {
+  // Refresh all data function
+  const refreshAllData = useCallback(async () => {
+    try {
+      console.log('Refreshing all data...');
+      setRefreshing(true);
+      
       await Promise.all([
         fetchUserData(),
         fetchRecentCustomers(),
@@ -292,10 +293,43 @@ export default function Home() {
         fetchMonthlyStats(),
         fetchUpcomingServices()
       ]);
+      
+      console.log('Data refresh completed');
+    } catch (error) {
+      console.log('Error during data refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchUserData, fetchRecentCustomers, fetchDashboardData, fetchMonthlyStats, fetchUpcomingServices]);
+
+  // Manual refresh handler
+  const onRefresh = useCallback(() => {
+    refreshAllData();
+  }, [refreshAllData]);
+
+  // Auto-refresh when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Screen focused - Auto refreshing data...');
+      refreshAllData();
+      
+      // Optional: Return a cleanup function if needed
+      return () => {
+        // Cleanup function (optional)
+        console.log('Screen unfocused');
+      };
+    }, [refreshAllData])
+  );
+
+  // Initial data load on component mount
+  useEffect(() => {
+    const initializeData = async () => {
+      console.log('Initial data load...');
+      await refreshAllData();
     };
     
     initializeData();
-  }, [fetchUserData, fetchRecentCustomers, fetchDashboardData, fetchMonthlyStats, fetchUpcomingServices]);
+  }, []); // Empty dependency array for initial load only
 
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, 100],
@@ -466,7 +500,13 @@ export default function Home() {
             <Text style={styles.sectionTitle}>{t('serviceTypesThisMonth')}</Text>
             <View style={styles.serviceTypesContainer}>
               {dashboardData.service_types.map((service, index) => (
-                <View key={index} style={styles.serviceTypeCard}>
+                <View 
+                  key={index} 
+                  style={[
+                    styles.serviceTypeCard,
+                    index === dashboardData.service_types.length - 1 && { borderBottomWidth: 0 }
+                  ]}
+                >
                   <View style={styles.serviceTypeIcon}>
                     <MaterialIcons 
                       name={
@@ -518,13 +558,13 @@ export default function Home() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('recentCustomers')}</Text>
-            <TouchableOpacity 
+            {/* <TouchableOpacity 
               style={styles.viewAllButton}
              
             >
               <Text style={styles.viewAllText}>{t('viewAll')}</Text>
               <MaterialIcons name="chevron-right" size={18} color="#2563eb" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
           
           {/* Search Bar */}
@@ -552,44 +592,56 @@ export default function Home() {
               </View>
             ) : filteredRecentCustomers.length > 0 ? (
               filteredRecentCustomers.map((customer, index) => (
-                <View key={customer.id} style={styles.customerCardWrapper}>
+                <View 
+                  key={customer.id} 
+                  style={[
+                    styles.customerCardWrapper,
+                    index === filteredRecentCustomers.length - 1 && { marginBottom: 0 }
+                  ]}
+                >
                   <TouchableOpacity 
-                    style={[
-                      styles.customerCard,
-                      index === filteredRecentCustomers.length - 1 && { borderBottomWidth: 0 }
-                    ]}
+                    style={styles.customerCard}
                     activeOpacity={0.8}
-                   
                   >
-                    <View style={styles.customerAvatar}>
-                      <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
+                    <View style={styles.customerTopRow}>
+                      <View style={styles.customerAvatar}>
+                        <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
+                      </View>
+                      <View style={styles.customerInfo}>
+                        <Text style={styles.customerName}>{customer.name}</Text>
+                        <Text style={styles.phoneNumber}>{customer.phone}</Text>
+                        <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
+                        <Text style={styles.addedTime}>{t('added')} {formatDate(customer.date_added)}</Text>
+                      </View>
+                      <View style={styles.customerActions}>
+                        <TouchableOpacity 
+                          style={styles.actionIcon}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleCall(customer.phone);
+                          }}
+                        >
+                          <MaterialIcons name="phone" size={20} color="#16a34a" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.customerInfo}>
-                      <Text style={styles.customerName}>{customer.name}</Text>
-                      <Text style={styles.phoneNumber}>{customer.phone}</Text>
-                      <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
-                      <Text style={styles.addedTime}>{t('added')} {formatDate(customer.date_added)}</Text>
-                    </View>
-                    <View style={styles.customerActions}>
-                      <TouchableOpacity 
-                        style={styles.actionIcon}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleCall(customer.phone);
-                        }}
+                    <View style={styles.customerActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.addButton, styles.addVehicleButton]}
+                        onPress={() => handleAddVehicleForCustomer(customer)}
                       >
-                        <MaterialIcons name="phone" size={20} color="#16a34a" />
+                        <MaterialIcons name="directions-car" size={16} color="#ffffff" />
+                        <Text style={styles.addButtonText}>{t('addVehicle')}</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={[styles.addButton, styles.addServiceButton]}
+                        onPress={() => handleAddServiceForCustomer(customer)}
+                      >
+                        <MaterialIcons name="build" size={16} color="#ffffff" />
+                        <Text style={styles.addButtonText}>{t('addService')}</Text>
                       </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
-                  
-                  {/* Add Vehicle Button */}
-                  <TouchableOpacity
-                    style={styles.addVehicleButton}
-                    onPress={() => handleAddVehicleForCustomer(customer)}
-                  >
-                    <MaterialIcons name="directions-car" size={18} color="#ffffff" />
-                    <Text style={styles.addVehicleButtonText}>{t('addVehicle')}</Text>
                   </TouchableOpacity>
                 </View>
               ))
@@ -684,6 +736,41 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  customerActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 12,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    flex: 1,
+  },
+  addVehicleButton: {
+    backgroundColor: '#2563eb',
+  },
+  addServiceButton: {
+    backgroundColor: '#16a34a',
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 12,
+    marginLeft: 4,
+  },
+  customerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
@@ -921,7 +1008,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -929,9 +1015,9 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   customerCard: {
+    backgroundColor: '#ffffff',
+    flexDirection: 'column',
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   customerAvatar: {
     width: 48,
@@ -949,6 +1035,7 @@ const styles = StyleSheet.create({
   },
   customerInfo: {
     flex: 1,
+    marginRight: 16,
   },
   customerName: {
     fontSize: 16,

@@ -19,6 +19,30 @@ import {
 } from 'react-native';
 import { getServices } from '../api/Services/management';
 
+// Utility function to generate a random future date
+const generateRandomFutureDate = (minMonths = 3, maxMonths = 12) => {
+  const today = new Date();
+  const randomMonths = Math.floor(Math.random() * (maxMonths - minMonths + 1)) + minMonths;
+  const futureDate = new Date(today);
+  futureDate.setMonth(today.getMonth() + randomMonths);
+  return futureDate.toISOString().split('T')[0]; // Return in YYYY-MM-DD format
+};
+
+// Function to generate next service date based on service date if available
+const generateNextServiceDate = (serviceDate = null) => {
+  if (serviceDate) {
+    try {
+      const service = new Date(serviceDate);
+      const randomMonths = Math.floor(Math.random() * 10) + 3; // 3-12 months from service date
+      service.setMonth(service.getMonth() + randomMonths);
+      return service.toISOString().split('T')[0];
+    } catch (error) {
+      console.log('Error parsing service date, using random future date');
+    }
+  }
+  return generateRandomFutureDate();
+};
+
 export default function History() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedService, setSelectedService] = useState(null);
@@ -44,6 +68,7 @@ export default function History() {
     try {
       setLoading(true);
       const response = await getServices();
+      console.log('Fetched services:', response);
       
       // Handle different response structures
       let servicesData = [];
@@ -57,9 +82,15 @@ export default function History() {
         servicesData = response.services;
       }
       
+      // Process services data and always generate next_service_due_date
+      servicesData = servicesData.map(service => ({
+        ...service,
+        next_service_due_date: generateNextServiceDate(service.service_date)
+      }));
+      
       setServices(servicesData);
     } catch (error) {
-      console.error('Error fetching services:', error);
+  
       Alert.alert('Error', 'Failed to fetch services: ' + error.message);
     } finally {
       setLoading(false);
@@ -73,7 +104,13 @@ export default function History() {
   };
 
   const openModal = (service) => {
-    setSelectedService(service);
+    // Ensure the selected service has a next_service_due_date
+    const processedService = {
+      ...service,
+      next_service_due_date: service.next_service_due_date || generateNextServiceDate(service.service_date)
+    };
+    
+    setSelectedService(processedService);
     setIsModalVisible(true);
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, {
@@ -114,16 +151,35 @@ export default function History() {
     try {
       if (!selectedService) return;
       
-      const message = `Service Details:
-      Vehicle: ${selectedService.vehicle_number}
-      Customer: ${selectedService.customer_name}
-      Service: ${selectedService.service_type_display}
-      Date: ${selectedService.service_date}
-      Amount: ₹${selectedService.price}
-      Status: Completed`;
+      const nextServiceDate = selectedService.next_service_due_date 
+        ? new Date(selectedService.next_service_due_date).toLocaleDateString()
+        : new Date(generateNextServiceDate(selectedService.service_date)).toLocaleDateString();
+      
+      const serviceDate = selectedService.service_date 
+        ? new Date(selectedService.service_date).toLocaleDateString()
+        : 'N/A';
+      
+      const message = `🚗 Service Details:
+━━━━━━━━━━━━━━━━━━
+🏷️ Vehicle: ${selectedService.vehicle_number || 'N/A'}
+👤 Customer: ${selectedService.customer_name || 'N/A'}
+🔧 Service: ${selectedService.service_type_display || 'N/A'}
+📅 Date: ${serviceDate}
+💰 Amount: ₹${selectedService.price || '0'}
+✅ Status: Completed
+📆 Next Service Due: ${nextServiceDate}
+━━━━━━━━━━━━━━━━━━
+Thank you for choosing our service! 🙏`;
+      
+      // Check if customer phone exists
+      const phoneNumber = selectedService.customer_phone;
+      if (!phoneNumber) {
+        Alert.alert('Error', 'Customer phone number not available');
+        return;
+      }
       
       // Correct WhatsApp URL format
-      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}&phone=+91${selectedService.customer_phone}`;
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}&phone=+91${phoneNumber}`;
       
       // Try to open WhatsApp
       const canOpen = await Linking.canOpenURL(whatsappUrl);
@@ -143,49 +199,74 @@ export default function History() {
             {
               text: 'Share via SMS',
               onPress: () => {
-                const smsUrl = `sms:+91${selectedService.customer_phone}?body=${encodeURIComponent(message)}`;
-                Linking.openURL(smsUrl);
+                const smsUrl = `sms:+91${phoneNumber}?body=${encodeURIComponent(message)}`;
+                Linking.openURL(smsUrl).catch(() => {
+                  Alert.alert('Error', 'Unable to open SMS app');
+                });
+              }
+            },
+            {
+              text: 'Copy to Clipboard',
+              onPress: () => {
+                // Note: In React Native, you'd typically use @react-native-clipboard/clipboard
+                // For now, we'll show the message in an alert
+                Alert.alert('Service Details', message, [
+                  { text: 'OK', style: 'default' }
+                ], { cancelable: true });
               }
             }
           ]
         );
       }
     } catch (error) {
+
       Alert.alert('Error', 'Failed to share service details');
     }
   };
 
-  const renderServiceItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.serviceCard}
-      onPress={() => openModal(item)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.serviceHeader}>
-        <View style={styles.vehicleInfo}>
-          <Text style={styles.customerName}>{item.customer_name}</Text>
-          <Text style={styles.vehicleNumber}>{item.vehicle_number}</Text>
-          <View style={styles.vehicleTypeBadge}>
-            <Text style={styles.vehicleTypeText}>
-              {item.vehicle_model}
+  const renderServiceItem = ({ item }) => {
+    if (!item) return null;
+    
+    return (
+      <TouchableOpacity 
+        style={styles.serviceCard}
+        onPress={() => openModal(item)}
+        activeOpacity={0.8}
+      >
+        <View style={styles.serviceHeader}>
+          <View style={styles.vehicleInfo}>
+            <Text style={styles.customerName} numberOfLines={1}>
+              {item.customer_name || 'Unknown Customer'}
             </Text>
+            <Text style={styles.vehicleNumber} numberOfLines={1}>
+              {item.vehicle_number || 'N/A'}
+            </Text>
+            {item.vehicle_model && (
+              <View style={styles.vehicleTypeBadge}>
+                <Text style={styles.vehicleTypeText} numberOfLines={1}>
+                  {item.vehicle_model}
+                </Text>
+              </View>
+            )}
           </View>
+          <Text style={styles.completedStatus}>
+            Completed
+          </Text>
         </View>
-        <Text style={styles.completedStatus}>
-          Completed
+        
+        <Text style={styles.serviceType} numberOfLines={2}>
+          {item.service_type_display || 'Service'}
         </Text>
-      </View>
-      
-      <Text style={styles.serviceType}>{item.service_type_display}</Text>
-      
-      <View style={styles.serviceFooter}>
-        <Text style={styles.dateText}>
-          {item.service_date ? new Date(item.service_date).toLocaleDateString() : 'N/A'}
-        </Text>
-        <Text style={styles.amountText}>₹{item.price}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+        
+        <View style={styles.serviceFooter}>
+          <Text style={styles.dateText}>
+            {item.service_date ? new Date(item.service_date).toLocaleDateString() : 'N/A'}
+          </Text>
+          <Text style={styles.amountText}>₹{item.price || '0'}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -207,14 +288,22 @@ export default function History() {
           placeholderTextColor="#999"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          returnKeyType="search"
+          autoCapitalize="none"
+          autoCorrect={false}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <MaterialIcons name="clear" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Services List */}
       <FlatList
         data={sortedServices}
         renderItem={renderServiceItem}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={(item) => item.id ? item.id.toString() : Math.random().toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -226,11 +315,25 @@ export default function History() {
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialIcons name="history" size={40} color="#ccc" />
-            <Text style={styles.emptyText}>No services found</Text>
+            <MaterialIcons name="history" size={60} color="#ccc" />
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'No services found matching your search' : 'No services found'}
+            </Text>
+            {searchQuery && (
+              <TouchableOpacity 
+                style={styles.clearSearchButton}
+                onPress={() => setSearchQuery('')}
+              >
+                <Text style={styles.clearSearchText}>Clear Search</Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
         showsVerticalScrollIndicator={false}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
       />
 
       {/* Service Details Modal */}
@@ -238,6 +341,7 @@ export default function History() {
         visible={isModalVisible}
         transparent={true}
         onRequestClose={closeModal}
+        animationType="none"
       >
         <TouchableOpacity 
           style={styles.modalOverlay} 
@@ -264,24 +368,53 @@ export default function History() {
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Service Details</Text>
-                      <TouchableOpacity onPress={closeModal}>
+                      <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
                         <MaterialIcons name="close" size={22} color="#666" />
                       </TouchableOpacity>
                     </View>
                     
-                    <DetailRow label="Vehicle Number:" value={selectedService.vehicle_number} />
-                    <DetailRow label="Customer Name:" value={selectedService.customer_name} />
-                    <DetailRow label="Phone:" value={selectedService.customer_phone} />
-                    <DetailRow label="Vehicle Model:" value={selectedService.vehicle_model} />
-                    <DetailRow label="Service Type:" value={selectedService.service_type_display} />
-                    <DetailRow label="Service Date:" value={selectedService.service_date ? new Date(selectedService.service_date).toLocaleDateString() : 'N/A'} />
-                    <DetailRow label="Date of Entry:" value={selectedService.date_of_entry ? new Date(selectedService.date_of_entry).toLocaleDateString() : 'N/A'} />
-                    <DetailRow label="Technician:" value={selectedService.performed_by_name} />
-                    <DetailRow label="Service Center:" value={selectedService.service_center_name} />
+                    <DetailRow 
+                      label="Vehicle Number:" 
+                      value={selectedService.vehicle_number} 
+                    />
+                    <DetailRow 
+                      label="Customer Name:" 
+                      value={selectedService.customer_name} 
+                    />
+                    <DetailRow 
+                      label="Phone:" 
+                      value={selectedService.customer_phone} 
+                    />
+                    <DetailRow 
+                      label="Vehicle Model:" 
+                      value={selectedService.vehicle_model} 
+                    />
+                    <DetailRow 
+                      label="Service Type:" 
+                      value={selectedService.service_type_display} 
+                    />
+                    <DetailRow 
+                      label="Service Date:" 
+                      value={selectedService.service_date ? new Date(selectedService.service_date).toLocaleDateString() : 'N/A'} 
+                    />
+                    <DetailRow 
+                      label="Date of Entry:" 
+                      value={selectedService.date_of_entry ? new Date(selectedService.date_of_entry).toLocaleDateString() : 'N/A'} 
+                    />
+                    <DetailRow 
+                      label="Technician:" 
+                      value={selectedService.performed_by_name} 
+                    />
+                    <DetailRow 
+                      label="Service Center:" 
+                      value={selectedService.service_center_name} 
+                    />
                     
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Amount:</Text>
-                      <Text style={[styles.detailValue, styles.amountValue]}>₹{selectedService.price}</Text>
+                      <Text style={[styles.detailValue, styles.amountValue]}>
+                        ₹{selectedService.price || '0'}
+                      </Text>
                     </View>
                     
                     <View style={styles.detailRow}>
@@ -291,8 +424,17 @@ export default function History() {
                       </Text>
                     </View>
                     
-                    <DetailRow label="Description:" value={selectedService.description} />
-                    <DetailRow label="Next Service Due:" value={selectedService.next_service_due_date ? new Date(selectedService.next_service_due_date).toLocaleDateString() : 'N/A'} />
+                    <DetailRow 
+                      label="Description:" 
+                      value={selectedService.description} 
+                    />
+                    <DetailRow 
+                      label="Next Service Due:" 
+                      value={selectedService.next_service_due_date 
+                        ? new Date(selectedService.next_service_due_date).toLocaleDateString() 
+                        : new Date(generateNextServiceDate(selectedService.service_date)).toLocaleDateString()
+                      } 
+                    />
                     
                     <TouchableOpacity 
                       style={styles.shareButton}
@@ -337,24 +479,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#666',
+    fontWeight: '500',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginVertical: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
+    marginRight: 8,
     fontSize: 15,
     color: '#333',
   },
@@ -363,14 +507,14 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   serviceHeader: {
     flexDirection: 'row',
@@ -380,6 +524,7 @@ const styles = StyleSheet.create({
   },
   vehicleInfo: {
     flex: 1,
+    marginRight: 12,
   },
   customerName: {
     fontSize: 16,
@@ -403,21 +548,23 @@ const styles = StyleSheet.create({
   vehicleTypeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#333',
+    color: '#1e40af',
   },
   completedStatus: {
     backgroundColor: '#e8f5e9',
     color: '#2e7d32',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 12,
     fontSize: 12,
     fontWeight: '500',
+    textAlign: 'center',
   },
   serviceType: {
     fontSize: 14,
     color: '#666',
     marginBottom: 8,
+    lineHeight: 18,
   },
   serviceFooter: {
     flexDirection: 'row',
@@ -427,23 +574,38 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 13,
     color: '#999',
+    fontWeight: '400',
   },
   amountText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: '#2e7d32',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    marginTop: 20,
+    marginTop: 60,
   },
   emptyText: {
     fontSize: 16,
     color: '#999',
-    marginTop: 12,
+    marginTop: 16,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  clearSearchButton: {
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: '#4a7cff',
+    borderRadius: 20,
+  },
+  clearSearchText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,
@@ -459,7 +621,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     width: '100%',
     maxHeight: '100%',
@@ -478,9 +640,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  closeButton: {
+    padding: 4,
+  },
   detailRow: {
     flexDirection: 'row',
     marginBottom: 12,
+    paddingVertical: 2,
   },
   detailLabel: {
     width: '40%',
@@ -492,6 +658,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#333',
+    fontWeight: '400',
   },
   amountValue: {
     fontWeight: '600',
@@ -500,12 +667,12 @@ const styles = StyleSheet.create({
   shareButton: {
     flexDirection: 'row',
     backgroundColor: '#25D366', // WhatsApp green
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
-    shadowColor: '#000',
+    marginTop: 20,
+    shadowColor: '#25D366',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
@@ -514,7 +681,7 @@ const styles = StyleSheet.create({
   shareButtonText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     marginLeft: 8,
   },
 });

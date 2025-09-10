@@ -63,28 +63,28 @@ const styles = StyleSheet.create({
 });
 
 // Tab configuration - Fixed Settings icon
-const tabConfig = {
-  Home: {
-    iconName: 'home',
-    label: 'Home',
-    IconComponent: Ionicons,
-  },
-  History: {
-    iconName: 'history',
-    label: 'History',
-    IconComponent: MaterialIcons,
-  },
-  Profile: {
-    iconName: 'person',
-    label: 'Profile',
-    IconComponent: Ionicons,
-  },
-  Settings: {
-    iconName: 'settings-outline', // Fixed: Use valid Ionicons name
-    label: 'Settings',
-    IconComponent: Ionicons,
-  },
-};
+  const tabConfig = {
+    Home: {
+      iconName: 'home',
+      label: 'Home',
+      IconComponent: Ionicons,
+    },
+    History: {
+      iconName: 'history',
+      label: 'Works',
+      IconComponent: MaterialIcons,
+    },
+    Profile: {
+      iconName: 'person',
+      label: 'Profile',
+      IconComponent: Ionicons,
+    },
+    Settings: {
+      iconName: 'settings-outline', // Fixed: Use valid Ionicons name
+      label: 'Setups',
+      IconComponent: Ionicons,
+    },
+  };
 
 interface AnimatedTabIconProps {
   focused: boolean;

@@ -1,10 +1,12 @@
 {
   "expo": {
-    "name": "wheel",
+    "name": "Wheel aligment Info",
     "slug": "wheel",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.jpg",
+
+    "resizeMode": "contain", 
     "scheme": "wheel",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -13,8 +15,9 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/LogoNew.png",
+        "backgroundColor": "#ffffff",
+        "resizeMode": "contain"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anazk.wheel"
@@ -29,7 +32,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/lgo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -42,8 +45,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "33e485e7-6246-4c62-8278-b7910abc39d4"
+        "projectId": "bf007560-75b2-45f0-9fb6-08b63c7192b9"
       }
-    }
+    },
+    "owner": "anazk08"
   }
 }

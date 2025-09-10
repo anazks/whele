@@ -8,7 +8,7 @@ export const addStaff = async (Data: any) => {
     return response;
   } catch (error: any) {
     if (error.response) {
-      console.log("Backend Error:", error.response.data); // 👈 this shows real reason
+      console.log("Backend Error:", error.response.data.email); // 👈 this shows real reason
       return error.response.data;
     } else {
       console.log("Error:", error.message);
@@ -90,7 +90,6 @@ export const addVehicle = async (Data: any) => {
     }
   }
 }
-
 export const getCustomerVehicles = async (customerId: string) => {
   try {
     console.log('Fetching vehicles for customer with id:', customerId);
@@ -102,11 +101,12 @@ export const getCustomerVehicles = async (customerId: string) => {
 }
 export const addService = async (Data: any) => {
   try {
-    // Add today's date if service_date is missing or empty
     const today = new Date().toISOString().split("T")[0];
+    
     const payload = {
       ...Data,
-      service_date: today, // Always overwrite or ensure today's date
+      service_date: today,
+      next_service_due_date:  "2027-01-01" // Use a placeholder date
     };
 
     console.log("Payload", payload);
@@ -153,6 +153,7 @@ export const addService = async (Data: any) => {
   }
  }
 
+ 
  export const Dashboard = async () => {
   try {
     const response = await axios.get(`/api/dashboard/stats/`);

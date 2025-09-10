@@ -38,6 +38,8 @@ export const translations = {
     addVehicle: "Add Vehicle",
     addVehicleFor: "Add Vehicle for",
     noResults: "No customers found",
+    addService: 'Add Service'
+
     // Add any other translations you need
   },
   hindi: {
@@ -78,6 +80,7 @@ export const translations = {
     addVehicle: "वाहन जोड़ें",
     addVehicleFor: "के लिए वाहन जोड़ें",
     noResults: "कोई ग्राहक नहीं मिले",
+    addService:"मिले"
     // Add any other translations you need
   }
 };

@@ -1,96 +1,109 @@
-import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+
+// Simplified FAQ data
+const FAQS = [
+  {
+    id: '1',
+    question: 'What is Wheel Alignment?',
+    answer: 'Wheel alignment adjusts a vehicle’s suspension to ensure wheels are correctly positioned for optimal contact with the road.',
+  },
+  {
+    id: '2',
+    question: 'Why is proper alignment important?',
+    answer: 'It ensures even tire wear, better fuel efficiency, improved handling, and straight tracking on the road.',
+  },
+  {
+    id: '3',
+    question: 'How are alignment measurements taken?',
+    answer: 'Specialized equipment measures camber, caster, and toe angles of the wheels.',
+  },
+  {
+    id: '4',
+    question: 'What do camber, caster, and toe mean?',
+    answer: 'Camber is the wheel’s tilt (inward/outward), caster is the steering axis tilt, and toe is the wheel’s inward/outward turn.',
+  },
+  {
+    id: '5',
+    question: 'What are signs of misalignment?',
+    answer: 'Look for uneven tire wear, vehicle pulling to one side, steering wheel vibration, or off-center steering.',
+  },
+  {
+    id: '6',
+    question: 'How often should I check alignment?',
+    answer: 'Check every 6,000 miles, after hitting a pothole/curb, or if you notice driving issues.',
+  },
+  {
+    id: '7',
+    question: 'How do I interpret measurement values?',
+    answer: 'Values are compared to manufacturer specs; green means within tolerance, red means out of spec.',
+  },
+  {
+    id: '8',
+    question: 'What measurement units are used?',
+    answer: 'Camber and caster use degrees; toe uses degrees or fractions of an inch.',
+  },
+];
 
 export default function HelpCenter() {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState({});
-  const [activeCategory, setActiveCategory] = useState('all');
 
-  const toggleSection = (section) => {
+  // Toggle FAQ section
+  const toggleSection = (id) => {
     setExpandedSections(prev => ({
       ...prev,
-      [section]: !prev[section]
+      [id]: !prev[id],
     }));
   };
 
-  const faqData = {
-    general: [
-      {
-        question: "What is Wheel Alignment?",
-        answer: "Wheel alignment refers to the adjustment of a vehicle's suspension system to ensure that wheels are positioned correctly relative to each other and the road surface."
-      },
-      {
-        question: "Why is proper alignment important?",
-        answer: "Proper alignment ensures even tire wear, improves fuel efficiency, enhances vehicle handling, and maintains straight tracking on level roads."
-      }
-    ],
-    measurements: [
-      {
-        question: "How are alignment measurements taken?",
-        answer: "Alignment measurements are typically taken using specialized equipment that measures camber, caster, and toe angles of your wheels."
-      },
-      {
-        question: "What do camber, caster, and toe mean?",
-        answer: "Camber is the inward or outward tilt of the wheel. Caster is the forward or backward tilt of the steering axis. Toe is the extent to which wheels turn inward or outward."
-      }
-    ],
-    issues: [
-      {
-        question: "What are signs of misalignment?",
-        answer: "Common signs include uneven tire wear, vehicle pulling to one side, steering wheel vibration, or the steering wheel being off-center when driving straight."
-      },
-      {
-        question: "How often should I check alignment?",
-        answer: "It's recommended to check alignment every 6,000 miles or if you notice any driving issues or after hitting a significant pothole or curb."
-      }
-    ],
-    technical: [
-      {
-        question: "How do I interpret the measurement values?",
-        answer: "Measurement values are compared against manufacturer specifications. Green values typically indicate within tolerance, while red values show out-of-spec measurements."
-      },
-      {
-        question: "What measurement units are used?",
-        answer: "Angles are typically measured in degrees for camber and caster, while toe is often measured in degrees or fractions of an inch."
-      }
-    ]
+  // Filter FAQs based on search query
+  const filteredFaqs = FAQS.filter(faq =>
+    faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    faq.answer.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Handle email support (placeholder for actual email functionality)
+  const handleEmailSupport = () => {
+    Linking.openURL('mailto:maharajahublk@gmail.com?subject=Help%20Request')
+      .catch(() => Alert.alert('Error', 'Unable to open email app'));
   };
 
-  const categories = [
-    { id: 'all', name: 'All Topics', icon: 'list' },
-    { id: 'general', name: 'General', icon: 'help' },
-    { id: 'measurements', name: 'Measurements', icon: 'speed' },
-    { id: 'issues', name: 'Common Issues', icon: 'warning' },
-    { id: 'technical', name: 'Technical', icon: 'settings' }
-  ];
-
-  const filteredFaqs = () => {
-    if (activeCategory === 'all') {
-      return Object.values(faqData).flat();
-    }
-    return faqData[activeCategory] || [];
+  // Handle live chat (placeholder for actual chat functionality)
+  const handleLiveChat = () => {
+    Alert.alert('Live Chat', 'Live chat support is not yet implemented.');
+    // Future implementation: Linking.openURL('https://your-chat-service.com');
   };
 
+  // Render FAQs
   const renderFAQs = () => {
-    const data = filteredFaqs();
-    
-    return data.map((item, index) => (
-      <View key={index} style={styles.faqItem}>
-        <TouchableOpacity 
+    if (filteredFaqs.length === 0) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="help-circle-outline" size={48} color="#6b7280" />
+          <Text style={styles.emptyText}>No results found</Text>
+        </View>
+      );
+    }
+
+    return filteredFaqs.map(faq => (
+      <View key={faq.id} style={styles.faqItem}>
+        <TouchableOpacity
           style={styles.questionContainer}
-          onPress={() => toggleSection(index)}
+          onPress={() => toggleSection(faq.id)}
+          activeOpacity={0.7}
         >
-          <Text style={styles.questionText}>{item.question}</Text>
-          <Ionicons 
-            name={expandedSections[index] ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color="#666" 
+          <Text style={styles.questionText}>{faq.question}</Text>
+          <Ionicons
+            name={expandedSections[faq.id] ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#4b5563"
           />
         </TouchableOpacity>
-        {expandedSections[index] && (
+        {expandedSections[faq.id] && (
           <View style={styles.answerContainer}>
-            <Text style={styles.answerText}>{item.answer}</Text>
+            <Text style={styles.answerText}>{faq.answer}</Text>
           </View>
         )}
       </View>
@@ -99,65 +112,48 @@ export default function HelpCenter() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        {/* <Text style={styles.headerTitle}>Help Center</Text>
-        <Text style={styles.headerSubtitle}>Find answers to common questions</Text> */}
-      </View>
-
+      {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+        <Ionicons name="search" size={20} color="#6b7280" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search help articles..."
+          placeholderTextColor="#9ca3af"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Ionicons name="close" size={20} color="#6b7280" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryScroll}
-      >
-        {categories.map(category => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryButton,
-              activeCategory === category.id && styles.categoryButtonActive
-            ]}
-            onPress={() => setActiveCategory(category.id)}
-          >
-            <MaterialIcons 
-              name={category.icon} 
-              size={18} 
-              color={activeCategory === category.id ? '#fff' : '#555'} 
-            />
-            <Text style={[
-              styles.categoryText,
-              activeCategory === category.id && styles.categoryTextActive
-            ]}>
-              {category.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView style={styles.faqContainer}>
+      {/* FAQ List */}
+      <ScrollView style={styles.faqContainer} showsVerticalScrollIndicator={false}>
         {renderFAQs()}
       </ScrollView>
 
+      {/* Contact Section */}
       <View style={styles.contactContainer}>
-        <Text style={styles.contactTitle}>Need more help?</Text>
+        <Text style={styles.contactTitle}>Need More Help?</Text>
         <Text style={styles.contactText}>Contact our support team</Text>
-        
         <View style={styles.contactButtons}>
-          <TouchableOpacity style={styles.contactButton}>
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={handleEmailSupport}
+            activeOpacity={0.7}
+          >
             <FontAwesome name="envelope-o" size={16} color="#fff" />
             <Text style={styles.contactButtonText}>Email Support</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.contactButton, styles.chatButton]}>
+          <TouchableOpacity
+            style={[styles.contactButton, styles.chatButton]}
+            onPress={handleLiveChat}
+            activeOpacity={0.7}
+          >
             <Ionicons name="chatbubbles-outline" size={16} color="#fff" />
             <Text style={styles.contactButtonText}>Live Chat</Text>
           </TouchableOpacity>
@@ -170,80 +166,42 @@ export default function HelpCenter() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-  },
-  header: {
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
     paddingHorizontal: 12,
-    marginBottom: 16,
+    paddingVertical: 8,
+    marginBottom: 20,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#e5e7eb',
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 44,
     fontSize: 16,
-  },
-  categoryScroll: {
-    marginBottom: 16,
-    maxHeight: 44,
-  },
-  categoryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  categoryButtonActive: {
-    backgroundColor: '#495057',
-    borderColor: '#495057',
-  },
-  categoryText: {
-    marginLeft: 6,
-    color: '#555',
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  categoryTextActive: {
-    color: '#fff',
+    color: '#1f2937',
   },
   faqContainer: {
     flex: 1,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   faqItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginBottom: 8,
-    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    marginBottom: 12,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#e5e7eb',
+    overflow: 'hidden',
   },
   questionContainer: {
     flexDirection: 'row',
@@ -254,40 +212,55 @@ const styles = StyleSheet.create({
   questionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: '#1f2937',
     flex: 1,
-    marginRight: 10,
+    marginRight: 12,
   },
   answerContainer: {
-    padding: 16,
-    paddingTop: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: '#e5e7eb',
   },
   answerText: {
     fontSize: 14,
-    color: '#666',
+    color: '#4b5563',
     lineHeight: 20,
   },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    marginTop: 48,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginTop: 12,
+    textAlign: 'center',
+  },
   contactContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
     padding: 16,
+    marginTop: 16,
+    marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#e5e7eb',
   },
   contactTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    color: '#1f2937',
     textAlign: 'center',
+    marginBottom: 8,
   },
   contactText: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
+    color: '#4b5563',
     textAlign: 'center',
+    marginBottom: 16,
   },
   contactButtons: {
     flexDirection: 'row',
@@ -297,20 +270,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#495057',
+    backgroundColor: '#2563eb',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 6,
+    borderRadius: 8,
     flex: 1,
     marginRight: 8,
   },
   chatButton: {
-    backgroundColor: '#0ca678',
+    backgroundColor: '#16a34a',
+    marginRight: 0,
   },
   contactButtonText: {
-    color: '#fff',
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '500',
     marginLeft: 8,
-    fontSize: 14,
   },
 });

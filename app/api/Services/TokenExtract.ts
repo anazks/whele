@@ -16,7 +16,7 @@ const base64UrlDecode = (str) => {
     // Use atob for base64 decoding (available in React Native)
     return atob(str);
   } catch (error) {
-    console.error('Error decoding base64:', error);
+    console.log('Error decoding base64:', error);
     throw new Error('Invalid base64 encoding');
   }
 };
@@ -48,7 +48,7 @@ export const ExtractToken = async () => {
       return null;
     }
   } catch (error) {
-    console.error('Error extracting token:', error);
+    console.log('Error extracting token:', error);
     return null;
   }
 };
@@ -81,7 +81,7 @@ export const ExtractTokenWithLibrary = async () => {
       return null;
     }
   } catch (error) {
-    console.error('Error extracting token:', error);
+    console.log('Error extracting token:', error);
     return null;
   }
 };
