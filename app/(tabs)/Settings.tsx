@@ -27,7 +27,9 @@ export default function Settings() {
       logoutConfirm: "Are you sure you want to log out?",
       cancel: "Cancel",
       error: "Error",
-      logoutError: "Failed to log out. Please try again."
+      logoutError: "Failed to log out. Please try again.",
+      subscription: "Subscription", // Added subscription translation
+      manageSubscription: "Manage Subscription", // Added subscription translation
     },
     hindi: {
       support: "सहायता",
@@ -43,7 +45,9 @@ export default function Settings() {
       logoutConfirm: "क्या आप वाकई लॉग आउट करना चाहते हैं?",
       cancel: "रद्द करें",
       error: "त्रुटि",
-      logoutError: "लॉग आउट करने में विफल। कृपया पुनः प्रयास करें।"
+      logoutError: "लॉग आउट करने में विफल। कृपया पुनः प्रयास करें।",
+      subscription: "सदस्यता", // Added subscription translation
+      manageSubscription: "सदस्यता प्रबंधित करें", // Added subscription translation
     }
   };
 
@@ -77,6 +81,17 @@ export default function Settings() {
   };
 
   const settingsOptions = [
+    {
+      title: t("subscription"), // Added subscription section
+      icon: <MaterialIcons name="payment" size={24} color="#4a7cff" />,
+      items: [
+        { 
+          name: t("manageSubscription"), 
+          icon: <Ionicons name="card-outline" size={22} color="#666" />,
+          screen: "../Screen/Constance/PayNow" // Subscription screen path
+        },
+      ]
+    },
     {
       title: t("support"),
       icon: <MaterialIcons name="help-outline" size={24} color="#4a7cff" />,
