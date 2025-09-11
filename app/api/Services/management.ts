@@ -8,7 +8,7 @@ export const addStaff = async (Data: any) => {
     return response;
   } catch (error: any) {
     if (error.response) {
-      console.log("Backend Error:", error.response.data.email); // 👈 this shows real reason
+      console.log("Backend Error:", error.response.data); // 👈 this shows real reason
       return error.response.data;
     } else {
       console.log("Error:", error.message);

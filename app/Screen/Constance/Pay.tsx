@@ -246,7 +246,7 @@ export default function Pay() {
         }
       } else {
         // Generic error handling
-        alert('Payment failed. Please try again.');
+        alert('You Already Have a Subscription Plan! You Can Renew after The current plan is Expired');
       }
     } finally {
       setLoading(false);
