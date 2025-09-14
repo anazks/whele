@@ -528,8 +528,8 @@ export default function Home() {
               </Text>
             </View>
             <View style={styles.formHeaderInfo}>
-              <Text style={styles.formCustomerName}>{selectedCustomer.name}</Text>
-              <Text style={styles.formCustomerPhone}>{selectedCustomer.phone}</Text>
+              <Text style={styles.formCustomerName}>{selectedCustomer.phone}</Text>
+              <Text style={styles.formCustomerPhone}>{selectedCustomer.name}</Text>
             </View>
             <TouchableOpacity 
               style={styles.callButton}
@@ -704,7 +704,7 @@ export default function Home() {
         ) : (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t('recentCustomers')}</Text>
+              {/* <Text style={styles.sectionTitle}>{t('recentCustomers')}</Text> */}
             </View>
 
             {/* Search Container with Toggle */}
@@ -742,9 +742,16 @@ export default function Home() {
                   value={customerSearchQuery}
                   onChangeText={setCustomerSearchQuery}
                 />
-                {customerSearchQuery.length > 0 && (
+                {customerSearchQuery.length > 0 ? (
                   <TouchableOpacity onPress={() => setCustomerSearchQuery('')}>
-                    <MaterialIcons name="close" size={20} color="#64748b" />
+                    <MaterialIcons name="close" size={20} color="#64748b" style={styles.clearIcon} />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity 
+                    style={styles.addCustomerIconButton}
+                    onPress={handleAddCustomerClick}
+                  >
+                    <MaterialIcons name="person-add" size={20} color="#2563eb" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -805,8 +812,8 @@ export default function Home() {
                           <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
                         </View>
                         <View style={styles.customerInfo}>
-                          <Text style={styles.customerName}>{customer.name}</Text>
                           <Text style={styles.boldPhoneNumber}>{customer.phone}</Text>
+                          <Text style={styles.customerName}>{customer.name}</Text>
                           
                           {/* Show vehicle info when searching by vehicle */}
                           {isSearchingByVehicle && customer.vehicles && customer.vehicles.length > 0 && (
@@ -1038,6 +1045,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop:10,
     marginBottom: 16,
   },
   sectionTitle: {
@@ -1083,12 +1091,9 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingVertical: 4,
   },
   searchIcon: {
     marginRight: 8,
@@ -1097,6 +1102,32 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#1e293b',
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+  },
+  clearIcon: {
+    padding: 4,
+  },
+  addCustomerIconButton: {
+    padding: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inlineAddCustomerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  inlineAddCustomerButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 15,
+    marginLeft: 4,
   },
   addCustomerContainer: {
     marginBottom: 16,
@@ -1162,13 +1193,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   customerName: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#1e293b',
     fontWeight: '400',
     marginBottom: 2,
   },
   boldPhoneNumber: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#64748b',
     fontWeight: '700',
     marginBottom: 4,
@@ -1373,8 +1404,6 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
-  
-  // New styles for selected customer form
   selectedCustomerContainer: {
     flex: 1,
   },

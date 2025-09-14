@@ -174,7 +174,7 @@ export default function Profile() {
 
   const loadKmReminder = async () => {
     try {
-      const savedKm = await AsyncStorage.getItem('next_kilometer');
+      const savedKm = await AsyncStorage.getItem('service_interval');
       if (savedKm) setNextKilometer(savedKm);
     } catch (error) {
       console.log('Error loading KM reminder:', error);
@@ -183,7 +183,7 @@ export default function Profile() {
 
   const saveKmReminder = async (kmValue) => {
     try {
-      await AsyncStorage.setItem('next_kilometer', kmValue);
+      await AsyncStorage.setItem('service_interval', kmValue);
       setNextKilometer(kmValue);
     } catch (error) {
       console.log('Error saving KM reminder:', error);

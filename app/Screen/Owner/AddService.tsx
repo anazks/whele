@@ -17,179 +17,130 @@ import {
 } from 'react-native';
 import { addService, getCustomerVehicles } from '../../api/Services/management';
 
-// Service type choices
+// Service type choices (restricted to Wheel Alignment and Balancing)
 const SERVICE_TYPE_CHOICES = [
-  { value: 'alignment', label: 'Alignment', icon: 'build' },
+  { value: 'alignment', label: 'Wheel Alignment', icon: 'build' },
   { value: 'balancing', label: 'Balancing', icon: 'tune' },
-  { value: 'rotation', label: 'Rotation', icon: 'refresh' },
-  { value: 'change', label: 'Change', icon: 'swap-horiz' },
-  { value: 'repair', label: 'Repair', icon: 'handyman' },
-  { value: 'inspection', label: 'Inspection', icon: 'search' },
-  { value: 'other', label: 'Other', icon: 'more-horiz' },
 ];
 
 const styles = {
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#fff',
   },
   header: {
-    backgroundColor: '#ffffff',
     paddingTop: StatusBar.currentHeight + 10,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1e293b',
-    flex: 1,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
   },
   customerCard: {
-    backgroundColor: '#e0f2fe',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0284c7',
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    padding: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007bff',
   },
   customerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#0c4a6e',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 4,
   },
   customerDetail: {
     fontSize: 14,
-    color: '#0369a1',
-    marginBottom: 2,
-    fontWeight: '500',
+    color: '#555',
   },
   contentContainer: {
-    padding: 20,
-    paddingTop: 24,
+    padding: 16,
   },
   sectionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 20,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
   sectionIcon: {
-    marginRight: 12,
-    backgroundColor: '#f1f5f9',
-    padding: 8,
-    borderRadius: 10,
+    marginRight: 8,
   },
   formGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '500',
+    color: '#333',
     marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
   },
   requiredStar: {
-    color: '#ef4444',
+    color: '#ff0000',
     marginLeft: 4,
   },
   inputContainer: {
     position: 'relative',
   },
   input: {
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     fontSize: 16,
-    backgroundColor: '#ffffff',
-    color: '#1e293b',
-    fontWeight: '500',
+    color: '#333',
   },
   inputFocused: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#f8faff',
-    elevation: 2,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderBottomColor: '#007bff',
   },
   inputError: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
-  },
-  inputIcon: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
+    borderBottomColor: '#ff0000',
   },
   textArea: {
-    height: 100,
+    height: 80,
     textAlignVertical: 'top',
-    paddingTop: 14,
+    paddingTop: 8,
   },
   errorText: {
-    color: '#ef4444',
-    fontSize: 13,
-    marginTop: 6,
-    fontWeight: '500',
-    marginLeft: 4,
+    color: '#ff0000',
+    fontSize: 12,
+    marginTop: 4,
   },
   selector: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#ffffff',
-    minHeight: 56,
   },
   selectorFocused: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#f8faff',
-    elevation: 2,
+    borderBottomColor: '#007bff',
   },
   selectedContent: {
     flexDirection: 'row',
@@ -197,239 +148,216 @@ const styles = {
     flex: 1,
   },
   selectedIcon: {
-    marginRight: 12,
-    backgroundColor: '#dbeafe',
-    padding: 8,
-    borderRadius: 10,
+    marginRight: 8,
   },
   selectedText: {
     fontSize: 16,
-    color: '#1e293b',
-    fontWeight: '600',
+    color: '#333',
+    fontWeight: '500',
   },
   placeholderText: {
     fontSize: 16,
-    color: '#94a3b8',
-    fontWeight: '500',
+    color: '#888',
   },
   chevronIcon: {
-    backgroundColor: '#f1f5f9',
     padding: 4,
-    borderRadius: 6,
   },
   vehicleSection: {
-    maxHeight: 200,
-    marginTop: 8,
+    maxHeight: 180,
   },
   vehicleItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 12,
     marginVertical: 4,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff',
   },
   selectedVehicleItem: {
-    backgroundColor: '#e0f2fe',
-    borderColor: '#0284c7',
-    elevation: 2,
+    borderColor: '#007bff',
+    backgroundColor: '#e6f3ff',
   },
   vehicleIcon: {
-    marginRight: 16,
-    backgroundColor: '#f1f5f9',
-    padding: 12,
-    borderRadius: 12,
+    marginRight: 12,
   },
   selectedVehicleIcon: {
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#e6f3ff',
   },
   vehicleContent: {
     flex: 1,
   },
   vehicleTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1e293b',
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#333',
   },
   vehicleSubtitle: {
     fontSize: 14,
-    color: '#64748b',
-    fontWeight: '500',
+    color: '#666',
   },
   checkIcon: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#28a745',
     padding: 4,
     borderRadius: 12,
   },
   noVehiclesContainer: {
     alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#fafbfc',
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#e0e0e0',
     borderStyle: 'dashed',
   },
   noVehiclesText: {
-    fontSize: 16,
-    color: '#64748b',
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    fontWeight: '500',
     marginTop: 8,
   },
-  nextKmCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 8,
-  },
-  nextKmHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  nextKmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  nextKmValue: {
-    fontSize: 12,
-    color: '#15803d',
-    marginTop: 2,
-  },
-  changeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-  },
-  changeButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 20,
-    paddingVertical: 18,
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#94a3b8',
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  submitButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
-    maxHeight: '70%',
-    paddingHorizontal: 24,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1e293b',
-    flex: 1,
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f1f5f9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalList: {
-    paddingBottom: 24,
-  },
-  serviceTypeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 16,
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  serviceTypeIcon: {
-    marginRight: 16,
-    backgroundColor: '#ffffff',
-    padding: 12,
-    borderRadius: 12,
-  },
-  serviceTypeName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1e293b',
-    flex: 1,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748b',
-    marginTop: 12,
-    fontWeight: '500',
-  },
   nonEditableField: {
-    backgroundColor: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
   nonEditableText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: '#333',
     fontWeight: '500',
   },
   nonEditableLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#666',
     marginTop: 4,
+  },
+  changeButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#007bff',
+    borderRadius: 6,
+  },
+  changeButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  calculationDisplay: {
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007bff',
+  },
+  calculationText: {
+    fontSize: 14,
+    color: '#007bff',
+    fontWeight: '500',
+  },
+  intervalSectionCard: {
+    backgroundColor: '#fff3cd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#f59e0b',
+  },
+  intervalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#b45309',
+    marginBottom: 4,
+  },
+  intervalText: {
+    fontSize: 12,
+    color: '#92400e',
+  },
+  submitButton: {
+    backgroundColor: '#007bff',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    maxHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  modalCloseButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalList: {
+    paddingBottom: 16,
+  },
+  serviceTypeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  serviceTypeIcon: {
+    marginRight: 12,
+  },
+  serviceTypeName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
   },
 };
 
@@ -439,7 +367,7 @@ export default function AddService() {
   const [showServiceTypeSelection, setShowServiceTypeSelection] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [currentLanguage, setCurrentLanguage] = useState('english');
-  const [nextKilometer, setNextKilometer] = useState('');
+  const [serviceInterval, setServiceInterval] = useState('5000'); // This stores the interval (e.g., 5000 km)
   const [showNextKilometerInput, setShowNextKilometerInput] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
@@ -482,15 +410,12 @@ export default function AddService() {
       noVehicles: "No vehicles found",
       noVehiclesMsg: "Add a vehicle first to continue",
       vehicle: "Vehicle",
-      fromSettings: "from settings",
+      fromSettings: "Calculated from Current + Service Interval",
       changeValue: "Change",
-      alignment: "Alignment",
-      balancing: "Balancing", 
-      rotation: "Rotation",
-      change: "Change",
-      repair: "Repair",
-      inspection: "Inspection",
-      other: "Other"
+      alignment: "Wheel Alignment",
+      balancing: "Balancing",
+      serviceIntervalTitle: "Service Interval Setting",
+      serviceIntervalDesc: "This is added to current kilometers to calculate next service",
     },
     hindi: {
       addService: "सेवा जोड़ें",
@@ -523,15 +448,12 @@ export default function AddService() {
       noVehicles: "कोई वाहन नहीं मिला",
       noVehiclesMsg: "जारी रखने के लिए पहले एक वाहन जोड़ें",
       vehicle: "वाहन",
-      fromSettings: "सेटिंग्स से",
+      fromSettings: "वर्तमान + सेवा अंतराल से गणना की गई",
       changeValue: "बदलें",
-      alignment: "अलाइनमेंट",
+      alignment: "व्हील अलाइनमेंट",
       balancing: "बैलेंसिंग",
-      rotation: "रोटेशन", 
-      change: "बदलना",
-      repair: "मरम्मत",
-      inspection: "निरीक्षण",
-      other: "अन्य"
+      serviceIntervalTitle: "सेवा अंतराल सेटिंग",
+      serviceIntervalDesc: "यह अगली सेवा की गणना के लिए वर्तमान किलोमीटर में जोड़ा जाता है",
     }
   };
 
@@ -557,47 +479,62 @@ export default function AddService() {
       const savedLanguage = await AsyncStorage.getItem('appLanguage');
       if (savedLanguage) setCurrentLanguage(savedLanguage);
     } catch (error) {
-      console.log('Error loading language preference:', error);
+      console.error('Error loading language preference:', error);
+      Alert.alert('Error', 'Failed to load language preference.');
     }
   };
 
-  const loadNextKilometer = async () => {
+  const loadServiceInterval = async () => {
     try {
-      const savedNextKilometer = await AsyncStorage.getItem('next_kilometer');
-      if (savedNextKilometer) {
-        setNextKilometer(savedNextKilometer);
-        setShowNextKilometerInput(false);
+      // Load the service interval (not the absolute next kilometer)
+      const savedServiceInterval = await AsyncStorage.getItem('service_interval');
+      if (savedServiceInterval) {
+        setServiceInterval(savedServiceInterval);
       } else {
-        setShowNextKilometerInput(true);
+        // Set default service interval to 5000 km
+        setServiceInterval('5000');
+        await AsyncStorage.setItem('service_interval', '5000');
       }
     } catch (error) {
-      console.log('Error loading next_kilometer:', error);
-      setShowNextKilometerInput(true);
+      console.error('Error loading service interval:', error);
+      Alert.alert('Error', 'Failed to load service interval data.');
+      setServiceInterval('5000'); // Fallback to default
     }
   };
 
-  const saveNextKilometer = async (value) => {
+  const saveServiceInterval = async (value) => {
     try {
-      await AsyncStorage.setItem('next_kilometer', value);
-      setNextKilometer(value);
-      setShowNextKilometerInput(false);
+      await AsyncStorage.setItem('service_interval', value);
+      setServiceInterval(value);
+      
+      // Recalculate next service km if current km is available
+      if (serviceForm.kilometers && !isNaN(serviceForm.kilometers)) {
+        const currentKm = parseFloat(serviceForm.kilometers);
+        const intervalKm = parseFloat(value);
+        const calculatedNextKm = currentKm + intervalKm;
+        setServiceForm(prev => ({
+          ...prev,
+          next_kilometer_input: calculatedNextKm.toString()
+        }));
+      }
     } catch (error) {
-      console.log('Error saving next_kilometer:', error);
+      console.error('Error saving service interval:', error);
+      Alert.alert('Error', 'Failed to save service interval data.');
     }
   };
 
   useEffect(() => {
     const fetchData = async () => {
-      await loadLanguagePreference();
-      await loadNextKilometer();
+      setLoading(true);
       try {
-        setLoading(true);
+        await loadLanguagePreference();
+        await loadServiceInterval();
         const vehiclesResponse = await getCustomerVehicles(customerId);
-        console.log(vehiclesResponse,"vehcile")
-        setCustomerVehicles(vehiclesResponse);
-        if (vehiclesResponse.length === 1) selectVehicle(vehiclesResponse[0]);
+        setCustomerVehicles(vehiclesResponse || []);
+        if (vehiclesResponse?.length === 1) selectVehicle(vehiclesResponse[0]);
       } catch (error) {
-        Alert.alert('Error', 'Failed to load vehicles');
+        console.error('Error fetching data:', error);
+        Alert.alert('Error', 'Failed to load vehicles or preferences.');
         setCustomerVehicles([]);
       } finally {
         setLoading(false);
@@ -607,13 +544,35 @@ export default function AddService() {
   }, [customerId]);
 
   const handleServiceChange = (name, value) => {
-    setServiceForm({ ...serviceForm, [name]: value });
+    setServiceForm(prev => {
+      const updatedForm = { ...prev, [name]: value };
+      
+      if (name === 'kilometers' && value && !isNaN(value) && parseFloat(value) >= 0) {
+        const currentKm = parseFloat(value);
+        const storedInterval = parseFloat(serviceInterval) || 5000; // Default to 5000 if no stored value
+        const calculatedNextKm = currentKm + storedInterval;
+        
+        updatedForm.next_kilometer_input = calculatedNextKm.toString();
+      } else if (name === 'kilometers' && (!value || isNaN(value))) {
+        updatedForm.next_kilometer_input = '';
+      }
+      
+      return updatedForm;
+    });
+    
     if (errors[name]) setErrors({ ...errors, [name]: '' });
   };
 
   const handleNextKilometerChange = (value) => {
     setServiceForm({ ...serviceForm, next_kilometer_input: value });
     if (errors.next_kilometer) setErrors({ ...errors, next_kilometer: '' });
+  };
+
+  // Add this new function to calculate and display the next service kilometers
+  const calculateNextServiceKm = () => {
+    const currentKm = parseFloat(serviceForm.kilometers) || 0;
+    const intervalKm = parseFloat(serviceInterval) || 5000;
+    return currentKm + intervalKm;
   };
 
   const validateServiceForm = () => {
@@ -629,7 +588,7 @@ export default function AddService() {
       valid = false;
     }
     
-    const nextKilometerValue = showNextKilometerInput ? serviceForm.next_kilometer_input : nextKilometer;
+    const nextKilometerValue = serviceForm.next_kilometer_input;
     if (!nextKilometerValue || nextKilometerValue.trim() === '') {
       newErrors.next_kilometer = t('nextKilometerRequired');
       valid = false;
@@ -653,13 +612,9 @@ export default function AddService() {
 
   const handleServiceSubmit = async () => {
     if (validateServiceForm()) {
+      setLoading(true);
       try {
-        setLoading(true);
-        const nextKilometerValue = showNextKilometerInput ? serviceForm.next_kilometer_input : nextKilometer;
-        
-        if (showNextKilometerInput && serviceForm.next_kilometer_input) {
-          await saveNextKilometer(serviceForm.next_kilometer_input);
-        }
+        const nextKilometerValue = serviceForm.next_kilometer_input;
         
         const priceValue = serviceForm.price ? parseFloat(serviceForm.price) : 0;
         const serviceData = {
@@ -668,7 +623,7 @@ export default function AddService() {
           service_type: serviceForm.service_type,
           description: serviceForm.description,
           price: priceValue,
-          kilometers: serviceForm.kilometers || null,
+          kilometers: serviceForm.kilometers ? parseFloat(serviceForm.kilometers) : null,
           next_service_due_date: serviceForm.next_service_due_date || null,
           next_kilometer: parseFloat(nextKilometerValue)
         };
@@ -693,12 +648,14 @@ export default function AddService() {
                   next_kilometer_input: ''
                 });
                 setSelectedVehicle(null);
+                setShowNextKilometerInput(false);
                 router.push('/(tabs)/History');
               }
             }
           ]
         );
       } catch (error) {
+        console.error('Error submitting service:', error);
         Alert.alert('Error', t('failedAddService'));
       } finally {
         setLoading(false);
@@ -728,7 +685,7 @@ export default function AddService() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -737,7 +694,7 @@ export default function AddService() {
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={20} color="#64748b" />
+            <Ionicons name="arrow-back" size={20} color="#666" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{t('addService')}</Text>
         </View>
@@ -770,16 +727,14 @@ export default function AddService() {
           {/* Vehicle Selection Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitle}>
-              <View style={styles.sectionIcon}>
-                <MaterialIcons name="directions-car" size={20} color="#3b82f6" />
-              </View>
+              <MaterialIcons name="directions-car" size={20} color="#007bff" style={styles.sectionIcon} />
               <Text>{t('vehicleSection')}</Text>
               <Text style={styles.requiredStar}>*</Text>
             </View>
             
             {loading ? (
               <View style={styles.loadingContainer}>
-                <MaterialIcons name="hourglass-empty" size={32} color="#94a3b8" />
+                <MaterialIcons name="hourglass-empty" size={24} color="#888" />
                 <Text style={styles.loadingText}>Loading vehicles...</Text>
               </View>
             ) : customerVehicles.length > 0 ? (
@@ -800,7 +755,7 @@ export default function AddService() {
                       <MaterialIcons 
                         name="directions-car" 
                         size={20} 
-                        color={selectedVehicle?.id === vehicle.id ? "#0284c7" : "#64748b"} 
+                        color={selectedVehicle?.id === vehicle.id ? "#007bff" : "#666"} 
                       />
                     </View>
                     <View style={styles.vehicleContent}>
@@ -813,7 +768,7 @@ export default function AddService() {
                     </View>
                     {selectedVehicle?.id === vehicle.id && (
                       <View style={styles.checkIcon}>
-                        <MaterialIcons name="check" size={16} color="#ffffff" />
+                        <MaterialIcons name="check" size={16} color="#fff" />
                       </View>
                     )}
                   </TouchableOpacity>
@@ -821,9 +776,9 @@ export default function AddService() {
               </ScrollView>
             ) : (
               <View style={styles.noVehiclesContainer}>
-                <MaterialIcons name="no-crash" size={48} color="#94a3b8" />
+                <MaterialIcons name="no-crash" size={32} color="#888" />
                 <Text style={styles.noVehiclesText}>{t('noVehicles')}</Text>
-                <Text style={[styles.noVehiclesText, { fontSize: 14, marginTop: 4 }]}>
+                <Text style={[styles.noVehiclesText, { fontSize: 12, marginTop: 4 }]}>
                   {t('noVehiclesMsg')}
                 </Text>
               </View>
@@ -834,9 +789,7 @@ export default function AddService() {
           {/* Service Details Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitle}>
-              <View style={styles.sectionIcon}>
-                <MaterialIcons name="build" size={20} color="#10b981" />
-              </View>
+              <MaterialIcons name="build" size={20} color="#28a745" style={styles.sectionIcon} />
               <Text>{t('serviceDetails')}</Text>
             </View>
 
@@ -856,13 +809,12 @@ export default function AddService() {
               >
                 {serviceForm.service_type ? (
                   <View style={styles.selectedContent}>
-                    <View style={styles.selectedIcon}>
-                      <MaterialIcons 
-                        name={getServiceTypeIcon(serviceForm.service_type)} 
-                        size={20} 
-                        color="#3b82f6" 
-                      />
-                    </View>
+                    <MaterialIcons 
+                      name={getServiceTypeIcon(serviceForm.service_type)} 
+                      size={20} 
+                      color="#007bff" 
+                      style={styles.selectedIcon}
+                    />
                     <Text style={styles.selectedText}>
                       {getTranslatedServiceType(serviceForm.service_type)}
                     </Text>
@@ -871,7 +823,7 @@ export default function AddService() {
                   <Text style={styles.placeholderText}>{t('selectServiceType')}</Text>
                 )}
                 <View style={styles.chevronIcon}>
-                  <Ionicons name="chevron-down" size={16} color="#64748b" />
+                  <Ionicons name="chevron-down" size={16} color="#666" />
                 </View>
               </TouchableOpacity>
               {errors.service_type ? <Text style={styles.errorText}>{errors.service_type}</Text> : null}
@@ -888,7 +840,7 @@ export default function AddService() {
                     focusedField === 'description' && styles.inputFocused
                   ]}
                   placeholder={t('enterServiceDescription')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#888"
                   value={serviceForm.description}
                   onChangeText={(text) => handleServiceChange('description', text)}
                   onFocus={() => setFocusedField('description')}
@@ -903,10 +855,16 @@ export default function AddService() {
           {/* Pricing & Tracking Section */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionTitle}>
-              <View style={styles.sectionIcon}>
-                <MaterialIcons name="track-changes" size={20} color="#f59e0b" />
-              </View>
+              <MaterialIcons name="track-changes" size={20} color="#f59e0b" style={styles.sectionIcon} />
               <Text>{t('pricing')}</Text>
+            </View>
+
+            {/* Service Interval Info */}
+            <View style={styles.intervalSectionCard}>
+              <Text style={styles.intervalTitle}>{t('serviceIntervalTitle')}</Text>
+              <Text style={styles.intervalText}>
+                {t('serviceIntervalDesc')}: {serviceInterval} km
+              </Text>
             </View>
 
             {/* Current Kilometers */}
@@ -920,20 +878,13 @@ export default function AddService() {
                     errors.kilometers && styles.inputError
                   ]}
                   placeholder={t('enterKilometers')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#888"
                   keyboardType="decimal-pad"
                   value={serviceForm.kilometers}
                   onChangeText={(text) => handleServiceChange('kilometers', text)}
                   onFocus={() => setFocusedField('kilometers')}
-                  onBlur={() => setFocusedField(null)}
+                  onBlur={() => setFocusedField('kilometers')}
                 />
-                <View style={styles.inputIcon}>
-                  <MaterialIcons 
-                    name="speed" 
-                    size={20} 
-                    color={focusedField === 'kilometers' ? '#3b82f6' : '#94a3b8'} 
-                  />
-                </View>
               </View>
               {errors.kilometers ? <Text style={styles.errorText}>{errors.kilometers}</Text> : null}
             </View>
@@ -945,7 +896,39 @@ export default function AddService() {
                 <Text style={styles.requiredStar}>*</Text>
               </Text>
               
-              {showNextKilometerInput ? (
+              {/* Display calculation breakdown */}
+              {/* {serviceForm.kilometers && serviceInterval && (
+                <View style={styles.calculationDisplay}>
+                  <Text style={styles.calculationText}>
+                    {serviceForm.kilometers} km (current) + {serviceInterval} km (interval) = {calculateNextServiceKm()} km
+                  </Text>
+                </View>
+              )} */}
+              
+              <View style={styles.inputContainer}>
+                <View style={styles.nonEditableField}>
+                  <Text style={styles.nonEditableText}>
+                    {serviceForm.next_kilometer_input ? 
+                      `${serviceForm.next_kilometer_input} km` : 
+                      t('enterNextKilometer')
+                    }
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.changeButton}
+                    onPress={() => setShowNextKilometerInput(true)}
+                  >
+                    <Text style={styles.changeButtonText}>{t('changeValue')}</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.nonEditableLabel}>
+                  {serviceForm.kilometers && serviceInterval ? 
+                    t('fromSettings') : 
+                    'Enter current kilometers to calculate'
+                  }
+                </Text>
+              </View>
+              
+              {showNextKilometerInput && (
                 <View style={styles.inputContainer}>
                   <TextInput
                     style={[
@@ -954,39 +937,13 @@ export default function AddService() {
                       errors.next_kilometer && styles.inputError
                     ]}
                     placeholder={t('enterNextKilometer')}
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor="#888"
                     keyboardType="decimal-pad"
                     value={serviceForm.next_kilometer_input}
                     onChangeText={handleNextKilometerChange}
                     onFocus={() => setFocusedField('nextKilometer')}
                     onBlur={() => setFocusedField(null)}
                   />
-                  <View style={styles.inputIcon}>
-                    <MaterialIcons 
-                      name="schedule" 
-                      size={20} 
-                      color={focusedField === 'nextKilometer' ? '#3b82f6' : '#94a3b8'} 
-                    />
-                  </View>
-                </View>
-              ) : (
-                <View style={[styles.nextKmCard, {shadowOpacity: 0, elevation: 0}]}>
-                  <View style={styles.nextKmHeader}>
-                    <View>
-                      <Text style={[styles.nextKmText, {fontSize: 16, fontWeight: '600'}]}>
-                        {nextKilometer} km
-                      </Text>
-                      <Text style={[styles.nextKmValue, {fontSize: 12, marginTop: 2}]}>
-                        {t('fromSettings')}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.changeButton, {backgroundColor: '#3b82f6'}]}
-                      onPress={() => setShowNextKilometerInput(true)}
-                    >
-                      <Text style={styles.changeButtonText}>{t('changeValue')}</Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
               )}
               {errors.next_kilometer ? <Text style={styles.errorText}>{errors.next_kilometer}</Text> : null}
@@ -1003,20 +960,13 @@ export default function AddService() {
                     errors.price && styles.inputError
                   ]}
                   placeholder={t('enterServicePrice')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#888"
                   keyboardType="decimal-pad"
                   value={serviceForm.price}
                   onChangeText={(text) => handleServiceChange('price', text)}
                   onFocus={() => setFocusedField('price')}
                   onBlur={() => setFocusedField(null)}
                 />
-                <View style={styles.inputIcon}>
-                  <MaterialIcons 
-                    name="currency-rupee" 
-                    size={20} 
-                    color={focusedField === 'price' ? '#3b82f6' : '#94a3b8'} 
-                  />
-                </View>
               </View>
               {errors.price ? <Text style={styles.errorText}>{errors.price}</Text> : null}
             </View>
@@ -1031,7 +981,7 @@ export default function AddService() {
             <MaterialIcons 
               name={loading ? "hourglass-empty" : "add-task"} 
               size={20} 
-              color="#ffffff" 
+              color="#fff" 
             />
             <Text style={styles.submitButtonText}>
               {loading ? t('adding') : t('addServiceButton')}
@@ -1055,7 +1005,7 @@ export default function AddService() {
                 style={styles.modalCloseButton}
                 onPress={() => setShowServiceTypeSelection(false)}
               >
-                <MaterialIcons name="close" size={16} color="#64748b" />
+                <MaterialIcons name="close" size={16} color="#666" />
               </TouchableOpacity>
             </View>
             
@@ -1066,15 +1016,14 @@ export default function AddService() {
                   style={styles.serviceTypeItem}
                   onPress={() => selectServiceType(serviceType)}
                 >
-                  <View style={styles.serviceTypeIcon}>
-                    <MaterialIcons 
-                      name={serviceType.icon} 
-                      size={20} 
-                      color="#3b82f6" 
-                    />
-                  </View>
+                  <MaterialIcons 
+                    name={serviceType.icon} 
+                    size={20} 
+                    color="#007bff" 
+                    style={styles.serviceTypeIcon}
+                  />
                   <Text style={styles.serviceTypeName}>{t(serviceType.value)}</Text>
-                  <MaterialIcons name="chevron-right" size={20} color="#94a3b8" />
+                  <MaterialIcons name="chevron-right" size={20} color="#888" />
                 </TouchableOpacity>
               ))}
             </ScrollView>

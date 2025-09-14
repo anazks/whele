@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,8 @@ type Credentials = {
 };
 
 export default function Login() {
+ 
+    const [hasToken, setHasToken] = useState(false);
   const [credentials, setCredentials] = useState<Credentials>({
     email: '',
     password: '',
@@ -54,7 +56,26 @@ export default function Login() {
       }));
     }
   };
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check for token in SecureStore (more secure than AsyncStorage)
+        const token = await AsyncStorage.getItem('accessToken');
+        
+        if (token) {
+          setHasToken(true);
+        } else {
+          setHasToken(false);
+        }
+      } catch (error) {
+        setHasToken(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    checkAuth();
+  }, []);
   const handleLogin = async () => {
     if (!validateForm()) return;
     
