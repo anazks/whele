@@ -53,6 +53,7 @@ export const getCustomer = async () => {
   try {
 
     const response = await axios.get(`/interaction/user/interactions/customers/`);
+    console.log(response.data)
     return response.data;
   } catch (error: any) {
     throw error?.response?.data || { message: "Failed to fetch customer" };
@@ -177,5 +178,14 @@ export const addService = async (Data: any) => {
       console.log("Error:", error.message);
       return { message: error.message };
     }
+  }
+ }
+
+ export const  getVehicle = async()=>{
+  try {
+    let response = await axios.get('/interaction/user/interactions/vehicles/')
+    return response.data
+  } catch (error) {
+    return error
   }
  }

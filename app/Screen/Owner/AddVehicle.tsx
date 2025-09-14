@@ -5,6 +5,7 @@ import { Alert, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vie
 import { addVehicle, getBrand, getCustomer } from '../../api/Services/management';
 import { translations } from '../../Languge/Languages';
 
+
 // Transport type choices
 const TRANSPORT_TYPE_CHOICES = [
   { value: 'private', label: 'Private' },
@@ -13,6 +14,7 @@ const TRANSPORT_TYPE_CHOICES = [
   { value: 'commercial', label: 'Commercial' },
   { value: 'other', label: 'Other' },
 ];
+
 
 // Generate years from 1980 to 2026
 const generateYearOptions = () => {
@@ -25,19 +27,16 @@ const generateYearOptions = () => {
 
 const YEAR_OPTIONS = generateYearOptions();
 
-// CSS Styles
+
+// Clean Professional Styles
 const styles = {
   container: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#ffffff',
     padding: 16,
     flexGrow: 1,
   },
   formContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   formTitle: {
     fontSize: 22,
@@ -59,12 +58,9 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: '#d1d1d1',
-    borderRadius: 6,
-    paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#ffffff',
     minHeight: 48,
   },
   selectorError: {
@@ -81,13 +77,10 @@ const styles = {
     flex: 1,
   },
   input: {
-    borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: '#d1d1d1',
-    borderRadius: 6,
-    paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    backgroundColor: '#ffffff',
     color: '#1a1a1a',
   },
   inputError: {
@@ -135,11 +128,9 @@ const styles = {
   modalSearchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
+    borderBottomWidth: 1,
     borderColor: '#d1d1d1',
-    borderRadius: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#ffffff',
     marginBottom: 16,
   },
   modalSearchIcon: {
@@ -189,6 +180,7 @@ const styles = {
   },
 };
 
+
 // Reusable Modal Component
 const SelectionModal = ({ visible, onClose, title, data, onSelect, renderItem, search, onSearch }) => {
   return (
@@ -209,7 +201,7 @@ const SelectionModal = ({ visible, onClose, title, data, onSelect, renderItem, s
             </View>
           )}
           <ScrollView style={styles.modalList}>
-            {data.map((item, index) => (
+            {data.map((item) => (
               <TouchableOpacity
                 key={item.id || item.value || item.toString()}
                 style={styles.modalItem}
@@ -228,6 +220,8 @@ const SelectionModal = ({ visible, onClose, title, data, onSelect, renderItem, s
   );
 };
 
+
+// Main Component
 export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null }) {
   const [currentLanguage, setCurrentLanguage] = useState('english');
   const [searchQuery, setSearchQuery] = useState('');
@@ -421,7 +415,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
       <View style={styles.formContainer}>
         <Text style={styles.formTitle}>{t('Add Vehicle')}</Text>
 
-        {/* Customer Selection */}
+        {/* Customer */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>{t('customer')}</Text>
           <TouchableOpacity
@@ -436,7 +430,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
           {errors.customer && <Text style={styles.errorText}>{errors.customer}</Text>}
         </View>
 
-        {/* Brand and Variant Selection */}
+        {/* Variant */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>{t('variant')}</Text>
           <TouchableOpacity
@@ -458,7 +452,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
           {errors.vehicle_type && <Text style={styles.errorText}>{errors.vehicle_type}</Text>}
         </View>
 
-        {/* Vehicle Model Year Selection */}
+        {/* Model Year */}
         <View style={styles.formGroup}>
           <Text style={styles.label}>{t('Year')}</Text>
           <TouchableOpacity
@@ -503,7 +497,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
           {errors.transport_type && <Text style={styles.errorText}>{errors.transport_type}</Text>}
         </View>
 
-        {/* Add Vehicle Button */}
+        {/* Button */}
         <TouchableOpacity
           style={[styles.submitButton, loading && styles.submitButtonDisabled]}
           onPress={handleVehicleSubmit}
@@ -513,7 +507,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         </TouchableOpacity>
       </View>
 
-      {/* Customer Selection Modal */}
+      {/* Customer Modal */}
       <SelectionModal
         visible={modalState.customer}
         onClose={() => setModalState({ ...modalState, customer: false })}
@@ -531,7 +525,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         )}
       />
 
-      {/* Brand Selection Modal */}
+      {/* Brand Modal */}
       <SelectionModal
         visible={modalState.brand}
         onClose={() => setModalState({ ...modalState, brand: false })}
@@ -540,15 +534,13 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         onSelect={selectBrand}
         renderItem={(brand) => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {brand.image_url && (
-              <Image source={{ uri: brand.image_url }} style={styles.brandImage} />
-            )}
+            {brand.image_url && <Image source={{ uri: brand.image_url }} style={styles.brandImage} />}
             <Text style={styles.modalItemName}>{brand.name}</Text>
           </View>
         )}
       />
 
-      {/* Variant Selection Modal */}
+      {/* Variant Modal */}
       <SelectionModal
         visible={modalState.variant}
         onClose={() => setModalState({ ...modalState, variant: false })}
@@ -563,7 +555,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         )}
       />
 
-      {/* Year Selection Modal */}
+      {/* Year Modal */}
       <SelectionModal
         visible={modalState.year}
         onClose={() => setModalState({ ...modalState, year: false })}
@@ -573,7 +565,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         renderItem={(year) => <Text style={styles.modalItemName}>{year}</Text>}
       />
 
-      {/* Transport Type Selection Modal */}
+      {/* Transport Type Modal */}
       <SelectionModal
         visible={modalState.transport}
         onClose={() => setModalState({ ...modalState, transport: false })}

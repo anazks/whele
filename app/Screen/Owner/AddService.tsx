@@ -1,13 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,60 +19,101 @@ import { addService, getCustomerVehicles } from '../../api/Services/management';
 
 // Service type choices
 const SERVICE_TYPE_CHOICES = [
-  { value: 'alignment', label: 'Alignment' },
-  { value: 'balancing', label: 'Balancing' },
-  { value: 'rotation', label: 'Rotation' },
-  { value: 'change', label: 'Change' },
-  { value: 'repair', label: 'Repair' },
-  { value: 'inspection', label: 'Inspection' },
-  { value: 'other', label: 'Other' },
+  { value: 'alignment', label: 'Alignment', icon: 'build' },
+  { value: 'balancing', label: 'Balancing', icon: 'tune' },
+  { value: 'rotation', label: 'Rotation', icon: 'refresh' },
+  { value: 'change', label: 'Change', icon: 'swap-horiz' },
+  { value: 'repair', label: 'Repair', icon: 'handyman' },
+  { value: 'inspection', label: 'Inspection', icon: 'search' },
+  { value: 'other', label: 'Other', icon: 'more-horiz' },
 ];
 
-// Form Styles
-const FormStyles = {
+const styles = {
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  header: {
     backgroundColor: '#ffffff',
+    paddingTop: StatusBar.currentHeight + 10,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 32,
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  formContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    // shadowColor: '#000',
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.08,
-    // shadowRadius: 8,
-    elevation: 3,
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
   },
-  formTitle: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1e293b',
-    marginBottom: 20,
-    textAlign: 'center',
+    flex: 1,
   },
-  customerInfo: {
-    backgroundColor: '#eff6ff',
+  customerCard: {
+    backgroundColor: '#e0f2fe',
+    borderRadius: 16,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    marginTop: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0284c7',
   },
   customerName: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: '#0c4a6e',
+    marginBottom: 4,
   },
   customerDetail: {
     fontSize: 14,
-    color: '#475569',
-    marginBottom: 4,
+    color: '#0369a1',
+    marginBottom: 2,
     fontWeight: '500',
+  },
+  contentContainer: {
+    padding: 20,
+    paddingTop: 24,
+  },
+  sectionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionIcon: {
+    marginRight: 12,
+    backgroundColor: '#f1f5f9',
+    padding: 8,
+    borderRadius: 10,
   },
   formGroup: {
     marginBottom: 20,
@@ -78,167 +121,315 @@ const FormStyles = {
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#374151',
     marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  requiredStar: {
+    color: '#ef4444',
+    marginLeft: 4,
+  },
+  inputContainer: {
+    position: 'relative',
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     color: '#1e293b',
+    fontWeight: '500',
   },
-  textArea: {
-    height: 120,
-    textAlignVertical: 'top',
-    paddingTop: 12,
+  inputFocused: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#f8faff',
+    elevation: 2,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   inputError: {
-    borderColor: '#dc2626',
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
+  inputIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingTop: 14,
   },
   errorText: {
-    color: '#dc2626',
-    fontSize: 12,
+    color: '#ef4444',
+    fontSize: 13,
     marginTop: 6,
     fontWeight: '500',
+    marginLeft: 4,
   },
   selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f8fafc',
+    paddingVertical: 14,
+    backgroundColor: '#ffffff',
+    minHeight: 56,
+  },
+  selectorFocused: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#f8faff',
+    elevation: 2,
+  },
+  selectedContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  selectedIcon: {
+    marginRight: 12,
+    backgroundColor: '#dbeafe',
+    padding: 8,
+    borderRadius: 10,
   },
   selectedText: {
     fontSize: 16,
     color: '#1e293b',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   placeholderText: {
     fontSize: 16,
     color: '#94a3b8',
-  },
-  vehicleList: {
-    maxHeight: 180,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    backgroundColor: '#f8fafc',
-  },
-  vehicleItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  selectedVehicleItem: {
-    backgroundColor: '#dbeafe',
-  },
-  vehicleText: {
-    fontSize: 16,
-    color: '#1e293b',
     fontWeight: '500',
   },
-  noVariantsText: {
+  chevronIcon: {
+    backgroundColor: '#f1f5f9',
+    padding: 4,
+    borderRadius: 6,
+  },
+  vehicleSection: {
+    maxHeight: 200,
+    marginTop: 8,
+  },
+  vehicleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginVertical: 4,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+  },
+  selectedVehicleItem: {
+    backgroundColor: '#e0f2fe',
+    borderColor: '#0284c7',
+    elevation: 2,
+  },
+  vehicleIcon: {
+    marginRight: 16,
+    backgroundColor: '#f1f5f9',
+    padding: 12,
+    borderRadius: 12,
+  },
+  selectedVehicleIcon: {
+    backgroundColor: '#dbeafe',
+  },
+  vehicleContent: {
+    flex: 1,
+  },
+  vehicleTitle: {
     fontSize: 16,
-    color: '#94a3b8',
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  vehicleSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  checkIcon: {
+    backgroundColor: '#10b981',
+    padding: 4,
+    borderRadius: 12,
+  },
+  noVehiclesContainer: {
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: '#fafbfc',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+  },
+  noVehiclesText: {
+    fontSize: 16,
+    color: '#64748b',
     textAlign: 'center',
-    paddingVertical: 20,
-    fontStyle: 'italic',
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  nextKmCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 8,
+  },
+  nextKmHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nextKmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  nextKmValue: {
+    fontSize: 12,
+    color: '#15803d',
+    marginTop: 2,
+  },
+  changeButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+  },
+  changeButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 16,
+    backgroundColor: '#3b82f6',
+    borderRadius: 20,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 24,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
   submitButtonDisabled: {
     backgroundColor: '#94a3b8',
-    opacity: 0.7,
+    elevation: 0,
+    shadowOpacity: 0,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkButton: {
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  linkButtonText: {
-    color: '#2563eb',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 8,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    paddingTop: 20,
-    overflow: 'hidden',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24,
+    maxHeight: '70%',
+    paddingHorizontal: 24,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1e293b',
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  modalList: {
-    maxHeight: 300,
-    paddingHorizontal: 20,
-  },
-  modalItem: {
-    paddingVertical: 16,
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
-  modalItemName: {
-    fontSize: 16,
-    fontWeight: '500',
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
     color: '#1e293b',
+    flex: 1,
   },
-  modalItemDetail: {
-    fontSize: 14,
-    color: '#475569',
-    marginBottom: 4,
-  },
-  closeButton: {
-    backgroundColor: '#6b7280',
-    borderRadius: 12,
-    paddingVertical: 16,
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginVertical: 20,
+    justifyContent: 'center',
   },
-  closeButtonText: {
-    color: '#fff',
+  modalList: {
+    paddingBottom: 24,
+  },
+  serviceTypeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 16,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  serviceTypeIcon: {
+    marginRight: 16,
+    backgroundColor: '#ffffff',
+    padding: 12,
+    borderRadius: 12,
+  },
+  serviceTypeName: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#1e293b',
+    flex: 1,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#64748b',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  nonEditableField: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nonEditableText: {
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  nonEditableLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
   },
 };
 
@@ -250,6 +441,7 @@ export default function AddService() {
   const [currentLanguage, setCurrentLanguage] = useState('english');
   const [nextKilometer, setNextKilometer] = useState('');
   const [showNextKilometerInput, setShowNextKilometerInput] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
 
   const selectedCustomer = {
     id: customerId,
@@ -262,33 +454,38 @@ export default function AddService() {
     english: {
       addService: "Add Service",
       serviceFor: "Service for",
-      serviceType: "Service Type *",
+      vehicleSection: "Select Vehicle",
+      serviceDetails: "Service Details", 
+      pricing: "Pricing & Tracking",
+      serviceType: "Service Type",
       selectServiceType: "Select service type",
       description: "Description",
-      enterServiceDescription: "Enter service description",
-      kilometers: "Kilometers",
-      enterKilometers: "Enter kilometers",
-      nextKilometer: "Next Kilometer *",
-      enterNextKilometer: "Enter next kilometer",
-      price: "Price",
-      enterServicePrice: "Enter service price",
-      nextServiceDueDate: "Next Service Due Date",
-      selectDueDate: "Select due date",
+      enterServiceDescription: "Describe the service performed...",
+      kilometers: "Current Kilometers",
+      enterKilometers: "Enter current odometer reading",
+      nextKilometer: "Next Service Kilometers",
+      enterNextKilometer: "Enter next service kilometers",
+      price: "Service Price",
+      enterServicePrice: "Enter service price (optional)",
       addServiceButton: "Add Service",
+      adding: "Adding Service...",
       serviceAdded: "Service added successfully!",
       failedAddService: "Failed to add service. Please try again.",
-      vehicleRequired: "Vehicle is required",
-      serviceTypeRequired: "Service type is required",
+      vehicleRequired: "Please select a vehicle",
+      serviceTypeRequired: "Please select service type",
       nextKilometerRequired: "Next kilometer is required",
       validPrice: "Enter a valid price",
-      validKilometers: "Enter a valid kilometers value",
-      validNextKilometer: "Enter a valid next kilometer value",
-      selectServiceTypeTitle: "Select Service Type",
+      validKilometers: "Enter valid kilometers",
+      validNextKilometer: "Enter valid next kilometers",
+      selectServiceTypeTitle: "Choose Service Type",
       close: "Close",
-      noVehicles: "No vehicles found for this customer",
-      vehicle: "Vehicle *",
+      noVehicles: "No vehicles found",
+      noVehiclesMsg: "Add a vehicle first to continue",
+      vehicle: "Vehicle",
+      fromSettings: "from settings",
+      changeValue: "Change",
       alignment: "Alignment",
-      balancing: "Balancing",
+      balancing: "Balancing", 
       rotation: "Rotation",
       change: "Change",
       repair: "Repair",
@@ -298,34 +495,39 @@ export default function AddService() {
     hindi: {
       addService: "सेवा जोड़ें",
       serviceFor: "के लिए सेवा",
-      serviceType: "सेवा प्रकार *",
+      vehicleSection: "वाहन चुनें",
+      serviceDetails: "सेवा विवरण",
+      pricing: "मूल्य और ट्रैकिंग",
+      serviceType: "सेवा प्रकार",
       selectServiceType: "सेवा प्रकार चुनें",
       description: "विवरण",
-      enterServiceDescription: "सेवा विवरण दर्ज करें",
-      kilometers: "किलोमीटर",
-      enterKilometers: "किलोमीटर दर्ज करें",
-      nextKilometer: "अगला किलोमीटर *",
-      enterNextKilometer: "अगला किलोमीटर दर्ज करें",
-      price: "मूल्य",
-      enterServicePrice: "सेवा मूल्य दर्ज करें",
-      nextServiceDueDate: "अगली सेवा नियत तिथि",
-      selectDueDate: "नियत तिथि चुनें",
+      enterServiceDescription: "की गई सेवा का विवरण दें...",
+      kilometers: "वर्तमान किलोमीटर",
+      enterKilometers: "वर्तमान ओडोमीटर रीडिंग दर्ज करें",
+      nextKilometer: "अगली सेवा किलोमीटर",
+      enterNextKilometer: "अगली सेवा किलोमीटर दर्ज करें",
+      price: "सेवा मूल्य",
+      enterServicePrice: "सेवा मूल्य दर्ज करें (वैकल्पिक)",
       addServiceButton: "सेवा जोड़ें",
+      adding: "सेवा जोड़ी जा रही है...",
       serviceAdded: "सेवा सफलतापूर्वक जोड़ी गई!",
       failedAddService: "सेवा जोड़ने में विफल। कृपया पुनः प्रयास करें।",
-      vehicleRequired: "वाहन आवश्यक है",
-      serviceTypeRequired: "सेवा प्रकार आवश्यक है",
+      vehicleRequired: "कृपया एक वाहन चुनें",
+      serviceTypeRequired: "कृपया सेवा प्रकार चुनें",
       nextKilometerRequired: "अगला किलोमीटर आवश्यक है",
       validPrice: "एक वैध मूल्य दर्ज करें",
-      validKilometers: "एक वैध किलोमीटर मान दर्ज करें",
-      validNextKilometer: "एक वैध अगला किलोमीटर मान दर्ज करें",
+      validKilometers: "वैध किलोमीटर दर्ज करें",
+      validNextKilometer: "वैध अगला किलोमीटर दर्ज करें",
       selectServiceTypeTitle: "सेवा प्रकार चुनें",
       close: "बंद करें",
-      noVehicles: "इस ग्राहक के लिए कोई वाहन नहीं मिला",
-      vehicle: "वाहन *",
+      noVehicles: "कोई वाहन नहीं मिला",
+      noVehiclesMsg: "जारी रखने के लिए पहले एक वाहन जोड़ें",
+      vehicle: "वाहन",
+      fromSettings: "सेटिंग्स से",
+      changeValue: "बदलें",
       alignment: "अलाइनमेंट",
       balancing: "बैलेंसिंग",
-      rotation: "रोटेशन",
+      rotation: "रोटेशन", 
       change: "बदलना",
       repair: "मरम्मत",
       inspection: "निरीक्षण",
@@ -391,10 +593,11 @@ export default function AddService() {
       try {
         setLoading(true);
         const vehiclesResponse = await getCustomerVehicles(customerId);
+        console.log(vehiclesResponse,"vehcile")
         setCustomerVehicles(vehiclesResponse);
         if (vehiclesResponse.length === 1) selectVehicle(vehiclesResponse[0]);
       } catch (error) {
-        alert('Failed to load vehicles');
+        Alert.alert('Error', 'Failed to load vehicles');
         setCustomerVehicles([]);
       } finally {
         setLoading(false);
@@ -416,6 +619,7 @@ export default function AddService() {
   const validateServiceForm = () => {
     let valid = true;
     const newErrors = {};
+    
     if (!serviceForm.vehicle) {
       newErrors.vehicle = t('vehicleRequired');
       valid = false;
@@ -424,6 +628,7 @@ export default function AddService() {
       newErrors.service_type = t('serviceTypeRequired');
       valid = false;
     }
+    
     const nextKilometerValue = showNextKilometerInput ? serviceForm.next_kilometer_input : nextKilometer;
     if (!nextKilometerValue || nextKilometerValue.trim() === '') {
       newErrors.next_kilometer = t('nextKilometerRequired');
@@ -432,6 +637,7 @@ export default function AddService() {
       newErrors.next_kilometer = t('validNextKilometer');
       valid = false;
     }
+    
     if (serviceForm.price && (isNaN(serviceForm.price) || parseFloat(serviceForm.price) < 0)) {
       newErrors.price = t('validPrice');
       valid = false;
@@ -440,6 +646,7 @@ export default function AddService() {
       newErrors.kilometers = t('validKilometers');
       valid = false;
     }
+    
     setErrors(newErrors);
     return valid;
   };
@@ -449,9 +656,11 @@ export default function AddService() {
       try {
         setLoading(true);
         const nextKilometerValue = showNextKilometerInput ? serviceForm.next_kilometer_input : nextKilometer;
+        
         if (showNextKilometerInput && serviceForm.next_kilometer_input) {
           await saveNextKilometer(serviceForm.next_kilometer_input);
         }
+        
         const priceValue = serviceForm.price ? parseFloat(serviceForm.price) : 0;
         const serviceData = {
           customer: serviceForm.customer,
@@ -463,22 +672,34 @@ export default function AddService() {
           next_service_due_date: serviceForm.next_service_due_date || null,
           next_kilometer: parseFloat(nextKilometerValue)
         };
+        
         await addService(serviceData);
-        alert(t('serviceAdded'));
-        setServiceForm({
-          customer: customerId,
-          vehicle: '',
-          service_type: '',
-          description: '',
-          price: '',
-          kilometers: '',
-          next_service_due_date: '',
-          next_kilometer_input: ''
-        });
-        setSelectedVehicle(null);
-        router.push('/(tabs)/History');
+        
+        Alert.alert(
+          'Success!',
+          t('serviceAdded'),
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setServiceForm({
+                  customer: customerId,
+                  vehicle: '',
+                  service_type: '',
+                  description: '',
+                  price: '',
+                  kilometers: '',
+                  next_service_due_date: '',
+                  next_kilometer_input: ''
+                });
+                setSelectedVehicle(null);
+                router.push('/(tabs)/History');
+              }
+            }
+          ]
+        );
       } catch (error) {
-        alert(t('failedAddService'));
+        Alert.alert('Error', t('failedAddService'));
       } finally {
         setLoading(false);
       }
@@ -500,183 +721,366 @@ export default function AddService() {
     return serviceType ? t(serviceType.value) : value;
   };
 
+  const getServiceTypeIcon = (value) => {
+    const serviceType = SERVICE_TYPE_CHOICES.find(st => st.value === value);
+    return serviceType ? serviceType.icon : 'build';
+  };
+
   return (
-    <SafeAreaView style={FormStyles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back" size={20} color="#64748b" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('addService')}</Text>
+        </View>
+        
+        <View style={styles.customerCard}>
+          <Text style={styles.customerName}>
+            {t('serviceFor')}: {selectedCustomer.name}
+          </Text>
+          <Text style={styles.customerDetail}>
+            📱 {selectedCustomer.phone}
+          </Text>
+          {selectedCustomer.email ? (
+            <Text style={styles.customerDetail}>
+              ✉️ {selectedCustomer.email}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
         <ScrollView
-          contentContainerStyle={FormStyles.contentContainer}
-          showsVerticalScrollIndicator={true}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={FormStyles.formContainer}>
-            <Text style={FormStyles.formTitle}>{t('addService')}</Text>
-
-            <View style={FormStyles.customerInfo}>
-              <Text style={FormStyles.customerName}>{t('serviceFor')}: {selectedCustomer.name}</Text>
-              <Text style={FormStyles.customerDetail}>Phone: {selectedCustomer.phone}</Text>
-              {selectedCustomer.email ? (
-                <Text style={FormStyles.customerDetail}>Email: {selectedCustomer.email}</Text>
-              ) : null}
+          {/* Vehicle Selection Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitle}>
+              <View style={styles.sectionIcon}>
+                <MaterialIcons name="directions-car" size={20} color="#3b82f6" />
+              </View>
+              <Text>{t('vehicleSection')}</Text>
+              <Text style={styles.requiredStar}>*</Text>
             </View>
-
-            <View style={FormStyles.formGroup}>
-              <Text style={FormStyles.label}>{t('vehicle')}</Text>
-              {customerVehicles.length > 0 ? (
-                <ScrollView style={FormStyles.vehicleList} nestedScrollEnabled={true}>
-                  {customerVehicles.map(vehicle => (
-                    <TouchableOpacity
-                      key={vehicle.id}
-                      style={[
-                        FormStyles.vehicleItem,
-                        selectedVehicle?.id === vehicle.id && FormStyles.selectedVehicleItem
-                      ]}
-                      onPress={() => selectVehicle(vehicle)}
-                    >
-                      <Text style={FormStyles.vehicleText}>
-                        {vehicle.vehicle_number} - {vehicle.brand_name} ({vehicle.vehicle_model})
+            
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <MaterialIcons name="hourglass-empty" size={32} color="#94a3b8" />
+                <Text style={styles.loadingText}>Loading vehicles...</Text>
+              </View>
+            ) : customerVehicles.length > 0 ? (
+              <ScrollView style={styles.vehicleSection} nestedScrollEnabled={true}>
+                {customerVehicles.map(vehicle => (
+                  <TouchableOpacity
+                    key={vehicle.id}
+                    style={[
+                      styles.vehicleItem,
+                      selectedVehicle?.id === vehicle.id && styles.selectedVehicleItem
+                    ]}
+                    onPress={() => selectVehicle(vehicle)}
+                  >
+                    <View style={[
+                      styles.vehicleIcon,
+                      selectedVehicle?.id === vehicle.id && styles.selectedVehicleIcon
+                    ]}>
+                      <MaterialIcons 
+                        name="directions-car" 
+                        size={20} 
+                        color={selectedVehicle?.id === vehicle.id ? "#0284c7" : "#64748b"} 
+                      />
+                    </View>
+                    <View style={styles.vehicleContent}>
+                      <Text style={styles.vehicleTitle}>
+                        {vehicle.vehicle_number}
                       </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              ) : (
-                <Text style={FormStyles.noVariantsText}>{t('noVehicles')}</Text>
-              )}
-              {errors.vehicle ? <Text style={FormStyles.errorText}>{errors.vehicle}</Text> : null}
+                      <Text style={styles.vehicleSubtitle}>
+                        {vehicle.brand_name} {vehicle.vehicle_model}
+                      </Text>
+                    </View>
+                    {selectedVehicle?.id === vehicle.id && (
+                      <View style={styles.checkIcon}>
+                        <MaterialIcons name="check" size={16} color="#ffffff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.noVehiclesContainer}>
+                <MaterialIcons name="no-crash" size={48} color="#94a3b8" />
+                <Text style={styles.noVehiclesText}>{t('noVehicles')}</Text>
+                <Text style={[styles.noVehiclesText, { fontSize: 14, marginTop: 4 }]}>
+                  {t('noVehiclesMsg')}
+                </Text>
+              </View>
+            )}
+            {errors.vehicle ? <Text style={styles.errorText}>{errors.vehicle}</Text> : null}
+          </View>
+
+          {/* Service Details Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitle}>
+              <View style={styles.sectionIcon}>
+                <MaterialIcons name="build" size={20} color="#10b981" />
+              </View>
+              <Text>{t('serviceDetails')}</Text>
             </View>
 
-            <View style={FormStyles.formGroup}>
-              <Text style={FormStyles.label}>{t('serviceType')}</Text>
+            {/* Service Type */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>
+                {t('serviceType')}
+                <Text style={styles.requiredStar}>*</Text>
+              </Text>
               <TouchableOpacity
-                style={[FormStyles.selector, errors.service_type && FormStyles.inputError]}
+                style={[
+                  styles.selector,
+                  showServiceTypeSelection && styles.selectorFocused,
+                  errors.service_type && styles.inputError
+                ]}
                 onPress={() => setShowServiceTypeSelection(true)}
               >
                 {serviceForm.service_type ? (
-                  <Text style={FormStyles.selectedText}>
-                    {getTranslatedServiceType(serviceForm.service_type)}
-                  </Text>
+                  <View style={styles.selectedContent}>
+                    <View style={styles.selectedIcon}>
+                      <MaterialIcons 
+                        name={getServiceTypeIcon(serviceForm.service_type)} 
+                        size={20} 
+                        color="#3b82f6" 
+                      />
+                    </View>
+                    <Text style={styles.selectedText}>
+                      {getTranslatedServiceType(serviceForm.service_type)}
+                    </Text>
+                  </View>
                 ) : (
-                  <Text style={FormStyles.placeholderText}>{t('selectServiceType')}</Text>
+                  <Text style={styles.placeholderText}>{t('selectServiceType')}</Text>
                 )}
-                <Ionicons name="chevron-down" size={20} color="#64748b" />
-              </TouchableOpacity>
-              {errors.service_type ? <Text style={FormStyles.errorText}>{errors.service_type}</Text> : null}
-            </View>
-
-            <View style={FormStyles.formGroup}>
-              <Text style={FormStyles.label}>{t('description')}</Text>
-              <TextInput
-                style={[FormStyles.input, FormStyles.textArea]}
-                placeholder={t('enterServiceDescription')}
-                placeholderTextColor="#94a3b8"
-                value={serviceForm.description}
-                onChangeText={(text) => handleServiceChange('description', text)}
-                multiline={true}
-                numberOfLines={4}
-              />
-            </View>
-
-            <View style={FormStyles.formGroup}>
-              <Text style={FormStyles.label}>{t('kilometers')}</Text>
-              <TextInput
-                style={[FormStyles.input, errors.kilometers && FormStyles.inputError]}
-                placeholder={t('enterKilometers')}
-                placeholderTextColor="#94a3b8"
-                keyboardType="decimal-pad"
-                value={serviceForm.kilometers}
-                onChangeText={(text) => handleServiceChange('kilometers', text)}
-              />
-              {errors.kilometers ? <Text style={FormStyles.errorText}>{errors.kilometers}</Text> : null}
-            </View>
-
-            {showNextKilometerInput ? (
-              <View style={FormStyles.formGroup}>
-                <Text style={FormStyles.label}>{t('nextKilometer')}</Text>
-                <TextInput
-                  style={[FormStyles.input, errors.next_kilometer && FormStyles.inputError]}
-                  placeholder={t('enterNextKilometer')}
-                  placeholderTextColor="#94a3b8"
-                  keyboardType="decimal-pad"
-                  value={serviceForm.next_kilometer_input}
-                  onChangeText={handleNextKilometerChange}
-                />
-                {errors.next_kilometer ? <Text style={FormStyles.errorText}>{errors.next_kilometer}</Text> : null}
-              </View>
-            ) : (
-              <View style={FormStyles.formGroup}>
-                <Text style={FormStyles.label}>{t('nextKilometer')}</Text>
-                <View style={[FormStyles.input, { justifyContent: 'center' }]}>
-                  <Text style={{ color: '#1e293b', fontSize: 16, fontWeight: '500' }}>
-                    {nextKilometer} (from settings)
-                  </Text>
+                <View style={styles.chevronIcon}>
+                  <Ionicons name="chevron-down" size={16} color="#64748b" />
                 </View>
-                <TouchableOpacity
-                  style={FormStyles.linkButton}
-                  onPress={() => setShowNextKilometerInput(true)}
-                >
-                  <Text style={FormStyles.linkButtonText}>Change Next Kilometer</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={FormStyles.formGroup}>
-              <Text style={FormStyles.label}>{t('price')}</Text>
-              <TextInput
-                style={[FormStyles.input, errors.price && FormStyles.inputError]}
-                placeholder={t('enterServicePrice')}
-                placeholderTextColor="#94a3b8"
-                keyboardType="decimal-pad"
-                value={serviceForm.price}
-                onChangeText={(text) => handleServiceChange('price', text)}
-              />
-              {errors.price ? <Text style={FormStyles.errorText}>{errors.price}</Text> : null}
+              </TouchableOpacity>
+              {errors.service_type ? <Text style={styles.errorText}>{errors.service_type}</Text> : null}
             </View>
 
-            <TouchableOpacity
-              style={[FormStyles.submitButton, loading && FormStyles.submitButtonDisabled]}
-              onPress={handleServiceSubmit}
-              disabled={loading}
-            >
-              <Text style={FormStyles.submitButtonText}>
-                {loading ? 'Adding...' : t('addServiceButton')}
-              </Text>
-            </TouchableOpacity>
+            {/* Description */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>{t('description')}</Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.textArea,
+                    focusedField === 'description' && styles.inputFocused
+                  ]}
+                  placeholder={t('enterServiceDescription')}
+                  placeholderTextColor="#94a3b8"
+                  value={serviceForm.description}
+                  onChangeText={(text) => handleServiceChange('description', text)}
+                  onFocus={() => setFocusedField('description')}
+                  onBlur={() => setFocusedField(null)}
+                  multiline={true}
+                  numberOfLines={4}
+                />
+              </View>
+            </View>
           </View>
 
-          <Modal
-            visible={showServiceTypeSelection}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setShowServiceTypeSelection(false)}
-          >
-            <View style={FormStyles.modalContainer}>
-              <View style={FormStyles.modalContent}>
-                <Text style={FormStyles.modalTitle}>{t('selectServiceTypeTitle')}</Text>
-                <ScrollView style={FormStyles.modalList}>
-                  {SERVICE_TYPE_CHOICES.map((serviceType) => (
-                    <TouchableOpacity
-                      key={serviceType.value}
-                      style={FormStyles.modalItem}
-                      onPress={() => selectServiceType(serviceType)}
-                    >
-                      <Text style={FormStyles.modalItemName}>{t(serviceType.value)}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                <TouchableOpacity
-                  style={FormStyles.closeButton}
-                  onPress={() => setShowServiceTypeSelection(false)}
-                >
-                  <Text style={FormStyles.closeButtonText}>{t('close')}</Text>
-                </TouchableOpacity>
+          {/* Pricing & Tracking Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionTitle}>
+              <View style={styles.sectionIcon}>
+                <MaterialIcons name="track-changes" size={20} color="#f59e0b" />
               </View>
+              <Text>{t('pricing')}</Text>
             </View>
-          </Modal>
+
+            {/* Current Kilometers */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>{t('kilometers')}</Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedField === 'kilometers' && styles.inputFocused,
+                    errors.kilometers && styles.inputError
+                  ]}
+                  placeholder={t('enterKilometers')}
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="decimal-pad"
+                  value={serviceForm.kilometers}
+                  onChangeText={(text) => handleServiceChange('kilometers', text)}
+                  onFocus={() => setFocusedField('kilometers')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <View style={styles.inputIcon}>
+                  <MaterialIcons 
+                    name="speed" 
+                    size={20} 
+                    color={focusedField === 'kilometers' ? '#3b82f6' : '#94a3b8'} 
+                  />
+                </View>
+              </View>
+              {errors.kilometers ? <Text style={styles.errorText}>{errors.kilometers}</Text> : null}
+            </View>
+
+            {/* Next Service Kilometers */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>
+                {t('nextKilometer')}
+                <Text style={styles.requiredStar}>*</Text>
+              </Text>
+              
+              {showNextKilometerInput ? (
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedField === 'nextKilometer' && styles.inputFocused,
+                      errors.next_kilometer && styles.inputError
+                    ]}
+                    placeholder={t('enterNextKilometer')}
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="decimal-pad"
+                    value={serviceForm.next_kilometer_input}
+                    onChangeText={handleNextKilometerChange}
+                    onFocus={() => setFocusedField('nextKilometer')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                  <View style={styles.inputIcon}>
+                    <MaterialIcons 
+                      name="schedule" 
+                      size={20} 
+                      color={focusedField === 'nextKilometer' ? '#3b82f6' : '#94a3b8'} 
+                    />
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.nextKmCard, {shadowOpacity: 0, elevation: 0}]}>
+                  <View style={styles.nextKmHeader}>
+                    <View>
+                      <Text style={[styles.nextKmText, {fontSize: 16, fontWeight: '600'}]}>
+                        {nextKilometer} km
+                      </Text>
+                      <Text style={[styles.nextKmValue, {fontSize: 12, marginTop: 2}]}>
+                        {t('fromSettings')}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.changeButton, {backgroundColor: '#3b82f6'}]}
+                      onPress={() => setShowNextKilometerInput(true)}
+                    >
+                      <Text style={styles.changeButtonText}>{t('changeValue')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+              {errors.next_kilometer ? <Text style={styles.errorText}>{errors.next_kilometer}</Text> : null}
+            </View>
+
+            {/* Price */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>{t('price')}</Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedField === 'price' && styles.inputFocused,
+                    errors.price && styles.inputError
+                  ]}
+                  placeholder={t('enterServicePrice')}
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="decimal-pad"
+                  value={serviceForm.price}
+                  onChangeText={(text) => handleServiceChange('price', text)}
+                  onFocus={() => setFocusedField('price')}
+                  onBlur={() => setFocusedField(null)}
+                />
+                <View style={styles.inputIcon}>
+                  <MaterialIcons 
+                    name="currency-rupee" 
+                    size={20} 
+                    color={focusedField === 'price' ? '#3b82f6' : '#94a3b8'} 
+                  />
+                </View>
+              </View>
+              {errors.price ? <Text style={styles.errorText}>{errors.price}</Text> : null}
+            </View>
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            onPress={handleServiceSubmit}
+            disabled={loading}
+          >
+            <MaterialIcons 
+              name={loading ? "hourglass-empty" : "add-task"} 
+              size={20} 
+              color="#ffffff" 
+            />
+            <Text style={styles.submitButtonText}>
+              {loading ? t('adding') : t('addServiceButton')}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Service Type Selection Modal */}
+      <Modal
+        visible={showServiceTypeSelection}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowServiceTypeSelection(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('selectServiceTypeTitle')}</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowServiceTypeSelection(false)}
+              >
+                <MaterialIcons name="close" size={16} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalList}>
+              {SERVICE_TYPE_CHOICES.map((serviceType) => (
+                <TouchableOpacity
+                  key={serviceType.value}
+                  style={styles.serviceTypeItem}
+                  onPress={() => selectServiceType(serviceType)}
+                >
+                  <View style={styles.serviceTypeIcon}>
+                    <MaterialIcons 
+                      name={serviceType.icon} 
+                      size={20} 
+                      color="#3b82f6" 
+                    />
+                  </View>
+                  <Text style={styles.serviceTypeName}>{t(serviceType.value)}</Text>
+                  <MaterialIcons name="chevron-right" size={20} color="#94a3b8" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
