@@ -56,7 +56,7 @@ export default function GetStartedScreen() {
   }, []);
 
   const handleGetStarted = () => {
-    router.push('./Screen/Owner/Register');
+    router.push('./Screen/Owner/Login');
   };
 
   return (

@@ -67,7 +67,7 @@ Maharajahub may change this policy from time to time by updating this page. You 
           </Text>
           <TouchableOpacity style={styles.contactButton} onPress={handleOpenEmail} activeOpacity={0.7}>
             <Ionicons name="mail-outline" size={18} color="#ffffff" />
-            <Text style={styles.contactButtonText}>support@yourapp.com</Text>
+            <Text style={styles.contactButtonText}>maharajahublk@gmail.com</Text>
           </TouchableOpacity>
         </View>
 

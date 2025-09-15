@@ -859,14 +859,6 @@ export default function AddService() {
               <Text>{t('pricing')}</Text>
             </View>
 
-            {/* Service Interval Info */}
-            <View style={styles.intervalSectionCard}>
-              <Text style={styles.intervalTitle}>{t('serviceIntervalTitle')}</Text>
-              <Text style={styles.intervalText}>
-                {t('serviceIntervalDesc')}: {serviceInterval} km
-              </Text>
-            </View>
-
             {/* Current Kilometers */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>{t('kilometers')}</Text>
@@ -894,17 +886,7 @@ export default function AddService() {
               <Text style={styles.label}>
                 {t('nextKilometer')}
                 <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              
-              {/* Display calculation breakdown */}
-              {/* {serviceForm.kilometers && serviceInterval && (
-                <View style={styles.calculationDisplay}>
-                  <Text style={styles.calculationText}>
-                    {serviceForm.kilometers} km (current) + {serviceInterval} km (interval) = {calculateNextServiceKm()} km
-                  </Text>
-                </View>
-              )} */}
-              
+              </Text>              
               <View style={styles.inputContainer}>
                 <View style={styles.nonEditableField}>
                   <Text style={styles.nonEditableText}>

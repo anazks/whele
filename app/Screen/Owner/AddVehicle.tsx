@@ -5,7 +5,6 @@ import { Alert, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, Vie
 import { addVehicle, getBrand, getCustomer } from '../../api/Services/management';
 import { translations } from '../../Languge/Languages';
 
-
 // Transport type choices
 const TRANSPORT_TYPE_CHOICES = [
   { value: 'private', label: 'Private' },
@@ -14,7 +13,6 @@ const TRANSPORT_TYPE_CHOICES = [
   { value: 'commercial', label: 'Commercial' },
   { value: 'other', label: 'Other' },
 ];
-
 
 // Generate years from 1980 to 2026
 const generateYearOptions = () => {
@@ -26,7 +24,6 @@ const generateYearOptions = () => {
 };
 
 const YEAR_OPTIONS = generateYearOptions();
-
 
 // Clean Professional Styles
 const styles = {
@@ -65,6 +62,10 @@ const styles = {
   },
   selectorError: {
     borderColor: '#e53e3e',
+  },
+  selectorDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.7,
   },
   selectedText: {
     fontSize: 16,
@@ -178,8 +179,11 @@ const styles = {
     borderRadius: 12,
     marginRight: 8,
   },
+  clearButton: {
+    marginLeft: 8,
+    padding: 4,
+  },
 };
-
 
 // Reusable Modal Component
 const SelectionModal = ({ visible, onClose, title, data, onSelect, renderItem, search, onSearch }) => {
@@ -220,7 +224,6 @@ const SelectionModal = ({ visible, onClose, title, data, onSelect, renderItem, s
   );
 };
 
-
 // Main Component
 export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null }) {
   const [currentLanguage, setCurrentLanguage] = useState('english');
@@ -236,6 +239,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [allCustomers, setAllCustomers] = useState([]);
   const [brands, setBrands] = useState([]);
   const [variants, setVariants] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -260,6 +264,22 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
     }
   };
 
+  // Load temp_vehicle_number from AsyncStorage
+  useEffect(() => {
+    const loadVehicleNumber = async () => {
+      try {
+        const tempVehicleNumber = await AsyncStorage.getItem('temp_vehicle_number');
+        if (tempVehicleNumber) {
+          setVehicleForm((prev) => ({ ...prev, vehicle_number: tempVehicleNumber.toUpperCase() }));
+        }
+      } catch (error) {
+        console.log('Error loading temp_vehicle_number from AsyncStorage:', error);
+      }
+    };
+    loadVehicleNumber();
+    loadLanguagePreference();
+  }, []);
+
   useEffect(() => {
     if (preselectedCustomer) {
       setSelectedCustomer(preselectedCustomer);
@@ -272,6 +292,7 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
       setLoading(true);
       try {
         const [customersResponse, brandsResponse] = await Promise.all([getCustomer(), getBrand()]);
+        setAllCustomers(customersResponse);
         setFilteredCustomers(customersResponse);
         setBrands(brandsResponse);
       } catch (error) {
@@ -285,15 +306,17 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
 
   useEffect(() => {
     if (searchQuery) {
-      const filtered = filteredCustomers.filter(
+      const filtered = allCustomers.filter(
         (customer) =>
           customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           customer.phone.includes(searchQuery) ||
           (customer.email && customer.email.toLowerCase().includes(searchQuery.toLowerCase()))
       );
       setFilteredCustomers(filtered);
+    } else {
+      setFilteredCustomers(allCustomers);
     }
-  }, [searchQuery]);
+  }, [searchQuery, allCustomers]);
 
   const handleVehicleChange = (name, value) => {
     setVehicleForm({ ...vehicleForm, [name]: value });
@@ -344,6 +367,8 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         transport_type: vehicleForm.transport_type,
       };
       const response = await addVehicle(vehicleData);
+      // Clear temp_vehicle_number from AsyncStorage after successful vehicle addition
+      await AsyncStorage.removeItem('temp_vehicle_number');
       Alert.alert(t('Vehicle Added Successfully!'));
       setVehicleForm({
         customer: '',
@@ -368,6 +393,11 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
     setVehicleForm({ ...vehicleForm, customer: customer.id.toString() });
     setModalState({ ...modalState, customer: false });
     setSearchQuery('');
+  };
+
+  const clearCustomer = () => {
+    setSelectedCustomer(null);
+    setVehicleForm({ ...vehicleForm, customer: '' });
   };
 
   const selectBrand = (brand) => {
@@ -405,6 +435,8 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
     return acc;
   }, []);
 
+  const isCustomerDisabled = !!preselectedCustomer;
+
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -419,13 +451,37 @@ export default function AddVehicle({ onVehicleAdded, preselectedCustomer = null 
         <View style={styles.formGroup}>
           <Text style={styles.label}>{t('customer')}</Text>
           <TouchableOpacity
-            style={[styles.selector, errors.customer && styles.selectorError]}
-            onPress={() => setModalState({ ...modalState, customer: true })}
+            style={[
+              styles.selector, 
+              errors.customer && styles.selectorError,
+              isCustomerDisabled && styles.selectorDisabled
+            ]}
+            onPress={() => {
+              if (!isCustomerDisabled) {
+                setModalState({ ...modalState, customer: true });
+              }
+            }}
+            disabled={isCustomerDisabled}
           >
             <Text style={[styles.selectedText, !selectedCustomer && styles.placeholderText]}>
               {selectedCustomer ? selectedCustomer.name : t('selectCustomer')}
             </Text>
-            <Ionicons name="chevron-down" size={20} color="#999" />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {selectedCustomer && !isCustomerDisabled && (
+                <TouchableOpacity
+                  style={styles.clearButton}
+                  onPress={clearCustomer}
+                >
+                  <Ionicons name="close-circle" size={20} color="#999" />
+                </TouchableOpacity>
+              )}
+              {!isCustomerDisabled && (
+                <Ionicons name="chevron-down" size={20} color="#999" />
+              )}
+              {isCustomerDisabled && (
+                <Ionicons name="lock-closed" size={20} color="#999" />
+              )}
+            </View>
           </TouchableOpacity>
           {errors.customer && <Text style={styles.errorText}>{errors.customer}</Text>}
         </View>

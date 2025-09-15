@@ -23,6 +23,7 @@ import { getProfile } from '../api/Services/AuthService';
 import { Dashboard, dashBoardMonthly, getCustomer, getCustomerVehicles, getVehicle, upcommingServices } from '../api/Services/management';
 import { ExtractToken } from '../api/Services/TokenExtract';
 import { translations } from '../Languge/Languages';
+import Banner from '../Screen/Component/Banner';
 import AddVehicle from '../Screen/Owner/AddVehicle';
 import CustomerAdd from '../Screen/Owner/CustomerAdd';
 
@@ -128,7 +129,6 @@ export default function Home() {
   const [customerVehicles, setCustomerVehicles] = useState<CustomerVehicle[]>([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
 
-  // Add new state for vehicle search
   const [isSearchingByVehicle, setIsSearchingByVehicle] = useState(false);
   const [vehicleSearchResults, setVehicleSearchResults] = useState<Customer[]>([]);
 
@@ -147,17 +147,14 @@ export default function Home() {
     }
   };
 
-  // Function to search by vehicle number
   const searchByVehicleNumber = async (vehicleNumber: string) => {
     try {
-      const response = await getVehicle(); // This should fetch all vehicles
+      const response = await getVehicle();
       if (response && Array.isArray(response)) {
-        // Filter vehicles by number (case-insensitive)
         const filteredVehicles = response.filter(vehicle => 
           vehicle.vehicle_number.toLowerCase().includes(vehicleNumber.toLowerCase())
         );
         
-        // Extract unique customers from filtered vehicles
         const customerIds = new Set();
         const customerVehiclesMap = new Map();
         
@@ -169,14 +166,12 @@ export default function Home() {
           customerVehiclesMap.get(vehicle.customer).push(vehicle);
         });
         
-        // Fetch customer details for each unique customer
         const customersResponse = await getCustomer();
         if (customersResponse && Array.isArray(customersResponse)) {
           const filteredCustomers = customersResponse.filter(customer => 
             customerIds.has(customer.id)
           );
           
-          // Add vehicles to each customer
           return filteredCustomers.map(customer => ({
             ...customer,
             vehicles: customerVehiclesMap.get(customer.id) || []
@@ -190,7 +185,6 @@ export default function Home() {
     }
   };
 
-  // Function to fetch customer vehicles
   const fetchCustomerVehicles = async (customerId: number) => {
     try {
       setVehiclesLoading(true);
@@ -224,7 +218,6 @@ export default function Home() {
     setExpandedCustomerId(null);
   };
 
-  // Add function to handle vehicle number search
   const handleVehicleSearch = async (vehicleNumber: string) => {
     try {
       if (vehicleNumber.length < 3) {
@@ -244,7 +237,6 @@ export default function Home() {
     }
   };
 
-  // Update the search/filter logic
   useEffect(() => {
     if (customerSearchQuery) {
       if (isSearchingByVehicle) {
@@ -263,7 +255,6 @@ export default function Home() {
     }
   }, [customerSearchQuery, recentCustomers, isSearchingByVehicle]);
 
-  // Get the customers to display based on search type
   const getDisplayCustomers = () => {
     if (customerSearchQuery && isSearchingByVehicle) {
       return vehicleSearchResults;
@@ -306,7 +297,14 @@ export default function Home() {
     setCustomerSearchQuery('');
   };
 
-  const handleAddCustomerClick = () => {
+  const handleAddCustomerClick = async () => {
+    if (isSearchingByVehicle) {
+      try {
+        await AsyncStorage.setItem('temp_vehicle_number', customerSearchQuery);
+      } catch (error) {
+        console.log('Error saving vehicle number to AsyncStorage:', error);
+      }
+    }
     setShowAddCustomer(true);
   };
 
@@ -407,8 +405,8 @@ export default function Home() {
       if (response && Array.isArray(response)) {
         setTotalCustomers(response.length);
         const limitedCustomers = response.slice(0, 5);
-        setRecentCustomers(limitedCustomers);
-        setFilteredRecentCustomers(limitedCustomers);
+        setRecentCustomers(response);
+        setFilteredRecentCustomers(response);
       } else {
         setTotalCustomers(0);
       }
@@ -504,7 +502,6 @@ export default function Home() {
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
-  // Render Selected Customer Form
   const renderSelectedCustomerForm = () => {
     if (!selectedCustomer) return null;
 
@@ -515,7 +512,7 @@ export default function Home() {
             style={styles.backButton}
             onPress={handleBackToCustomerList}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#2563eb" />
+            <MaterialIcons name="arrow-back" size={24} color="#ffffff" />
             <Text style={styles.backButtonText}>{t('back')}</Text>
           </TouchableOpacity>
         </View>
@@ -535,7 +532,7 @@ export default function Home() {
               style={styles.callButton}
               onPress={() => handleCall(selectedCustomer.phone)}
             >
-              <MaterialIcons name="phone" size={20} color="#16a34a" />
+              <MaterialIcons name="phone" size={20} color="#ffffff" />
             </TouchableOpacity>
           </View>
 
@@ -570,20 +567,20 @@ export default function Home() {
                 style={styles.addVehicleIconButton}
                 onPress={() => handleAddVehicleForCustomer(selectedCustomer)}
               >
-                <MaterialIcons name="add" size={20} color="#2563eb" />
+                <MaterialIcons name="add" size={20} color="#ffffff" />
               </TouchableOpacity>
             </View>
 
             {vehiclesLoading ? (
               <View style={styles.vehiclesLoadingContainer}>
-                <ActivityIndicator size="small" color="#2563eb" />
+                <ActivityIndicator size="small" color="#0052cc" />
                 <Text style={styles.loadingText}>{t('loadingVehicles')}</Text>
               </View>
             ) : customerVehicles.length > 0 ? (
               <View style={styles.vehiclesList}>
                 {customerVehicles.map((vehicle, index) => (
                   <View key={vehicle.id} style={styles.vehicleFormItem}>
-                    <MaterialIcons name="directions-car" size={20} color="#2563eb" />
+                    <MaterialIcons name="directions-car" size={20} color="#0052cc" />
                     <View style={styles.vehicleFormInfo}>
                       <Text style={styles.vehicleFormName}>
                         {vehicle.vehicle_display_name}
@@ -597,7 +594,7 @@ export default function Home() {
               </View>
             ) : (
               <View style={styles.noVehiclesContainer}>
-                <MaterialIcons name="directions-car" size={40} color="#e2e8f0" />
+                <MaterialIcons name="directions-car" size={40} color="#b3ccff" />
                 <Text style={styles.noVehiclesFormText}>{t('noVehiclesFound')}</Text>
                 <TouchableOpacity
                   style={styles.addFirstVehicleButton}
@@ -636,8 +633,8 @@ export default function Home() {
   if (isLoading || dashboardLoading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={{ marginTop: 10 }}>{t('loadingDashboard')}</Text>
+        <ActivityIndicator size="large" color="#0052cc" />
+        <Text style={{ marginTop: 10, color: '#000000' }}>{t('loadingDashboard')}</Text>
       </View>
     );
   }
@@ -655,7 +652,6 @@ export default function Home() {
         <View style={styles.headerContent}>
           <View style={styles.headerMainInfo}>
             <Text style={styles.shopName}>{userData.service_center_name || userData.name || 'LINJU Wheel Service'}</Text>
-            <Text style={styles.phoneNumber}>{userData.phone || ''}</Text>
           </View>
           
           <View style={styles.subscriptionContainer}>
@@ -678,7 +674,7 @@ export default function Home() {
         </View>
         
         <TouchableOpacity style={styles.notificationIcon}>
-          <MaterialIcons name="notifications-none" size={24} color="#555" />
+          <MaterialIcons name="notifications-none" size={24} color="#ffffff" />
           {upcomingServicesData.length > 0 && (
             <View style={styles.notificationBadge} />
           )}
@@ -694,20 +690,20 @@ export default function Home() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#2563eb"
-            colors={['#2563eb']}
+            tintColor="#0052cc"
+            colors={['#0052cc']}
           />
         }
       >
+          <Banner/>
+
         {selectedCustomer ? (
           renderSelectedCustomerForm()
         ) : (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              {/* <Text style={styles.sectionTitle}>{t('recentCustomers')}</Text> */}
             </View>
 
-            {/* Search Container with Toggle */}
             <View style={styles.searchContainer}>
               <View style={styles.searchTypeToggle}>
                 <TouchableOpacity 
@@ -732,42 +728,47 @@ export default function Home() {
                 <MaterialIcons 
                   name={isSearchingByVehicle ? "directions-car" : "search"} 
                   size={20} 
-                  color="#64748b" 
+                  color="#b3ccff" 
                   style={styles.searchIcon} 
                 />
                 <TextInput
                   style={styles.searchInput}
                   placeholder={isSearchingByVehicle ? t('searchVehiclePlaceholder') : t('searchPlaceholder')}
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor="#b3ccff"
                   value={customerSearchQuery}
                   onChangeText={setCustomerSearchQuery}
                 />
                 {customerSearchQuery.length > 0 ? (
                   <TouchableOpacity onPress={() => setCustomerSearchQuery('')}>
-                    <MaterialIcons name="close" size={20} color="#64748b" style={styles.clearIcon} />
+                    <MaterialIcons name="close" size={20} color="#b3ccff" style={styles.clearIcon} />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity 
                     style={styles.addCustomerIconButton}
                     onPress={handleAddCustomerClick}
                   >
-                    <MaterialIcons name="person-add" size={20} color="#2563eb" />
+                    <MaterialIcons name="person-add" size={24} color="#ffffff" />
                   </TouchableOpacity>
                 )}
               </View>
 
-              {customerSearchQuery && displayCustomers.length === 0 && !showAddCustomer && !isSearchingByVehicle && (
+              {customerSearchQuery && displayCustomers.length === 0 && !showAddCustomer && (
                 <TouchableOpacity
                   style={styles.inlineAddCustomerButton}
                   onPress={handleAddCustomerClick}
                 >
-                  <MaterialIcons name="person-add" size={18} color="#fff" />
-                  <Text style={styles.inlineAddCustomerButtonText}>{t('addCustomer')}</Text>
+                  <MaterialIcons 
+                    name={isSearchingByVehicle ? "directions-car" : "person-add"} 
+                    size={18} 
+                    color="#ffffff" 
+                  />
+                  <Text style={styles.inlineAddCustomerButtonText}>
+                    {isSearchingByVehicle ? t('addVehicle') : t('addCustomer')}
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Show Add Customer Component when showAddCustomer is true */}
             {showAddCustomer && (
               <View style={styles.addCustomerContainer}>
                 <CustomerAdd 
@@ -777,7 +778,6 @@ export default function Home() {
               </View>
             )}
 
-            {/* Show CustomerAdd component when there are no customers and no search query */}
             {!customersLoading && !showAddCustomer && displayCustomers.length === 0 && !customerSearchQuery && (
               <View style={styles.addCustomerContainer}>
                 <CustomerAdd onCustomerAdded={handleCustomerAdded} />
@@ -787,7 +787,7 @@ export default function Home() {
             <View style={styles.customersContainer}>
               {customersLoading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#2563eb" />
+                  <ActivityIndicator size="small" color="#0052cc" />
                   <Text style={styles.loadingText}>{t('loadingCustomers')}</Text>
                 </View>
               ) : displayCustomers.length > 0 ? (
@@ -814,8 +814,6 @@ export default function Home() {
                         <View style={styles.customerInfo}>
                           <Text style={styles.boldPhoneNumber}>{customer.phone}</Text>
                           <Text style={styles.customerName}>{customer.name}</Text>
-                          
-                          {/* Show vehicle info when searching by vehicle */}
                           {isSearchingByVehicle && customer.vehicles && customer.vehicles.length > 0 && (
                             <View style={styles.vehicleSearchInfo}>
                               {customer.vehicles.map(vehicle => (
@@ -825,7 +823,6 @@ export default function Home() {
                               ))}
                             </View>
                           )}
-                          
                           <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
                           <Text style={styles.addedTime}>{t('added')} {formatDate(customer.date_added)}</Text>
                         </View>
@@ -837,7 +834,7 @@ export default function Home() {
                               handleCall(customer.phone);
                             }}
                           >
-                            <MaterialIcons name="phone" size={20} color="#16a34a" />
+                            <MaterialIcons name="phone" size={20} color="#ffffff" />
                           </TouchableOpacity>
                           <TouchableOpacity 
                             style={styles.expandIcon}
@@ -849,7 +846,7 @@ export default function Home() {
                             <MaterialIcons 
                               name={expandedCustomerId === customer.id ? "expand-less" : "expand-more"} 
                               size={24} 
-                              color="#64748b" 
+                              color="#b3ccff" 
                             />
                           </TouchableOpacity>
                         </View>
@@ -862,13 +859,13 @@ export default function Home() {
                             <Text style={styles.vehiclesTitle}>{t('vehicles')}</Text>
                             {vehiclesLoading ? (
                               <View style={styles.vehiclesLoadingContainer}>
-                                <ActivityIndicator size="small" color="#2563eb" />
+                                <ActivityIndicator size="small" color="#0052cc" />
                                 <Text style={styles.loadingText}>{t('loadingVehicles')}</Text>
                               </View>
                             ) : customer.vehicles && customer.vehicles.length > 0 ? (
                               customer.vehicles.map(vehicle => (
                                 <View key={vehicle.id} style={styles.vehicleItem}>
-                                  <MaterialIcons name="directions-car" size={16} color="#64748b" />
+                                  <MaterialIcons name="directions-car" size={16} color="#0052cc" />
                                   <Text style={styles.vehicleText}>
                                     {vehicle.vehicle_display_name} ({vehicle.vehicle_number})
                                   </Text>
@@ -904,7 +901,7 @@ export default function Home() {
                   <MaterialIcons 
                     name={isSearchingByVehicle ? "directions-car" : "search-off"} 
                     size={40} 
-                    color="#ccc" 
+                    color="#b3ccff" 
                   />
                   <Text style={styles.emptyText}>
                     {isSearchingByVehicle ? t('noVehicleResults') : t('noResults')}
@@ -934,7 +931,7 @@ export default function Home() {
                 style={styles.closeButton}
                 onPress={() => setShowAddVehicleModal(false)}
               >
-                <MaterialIcons name="close" size={24} color="#64748b" />
+                <MaterialIcons name="close" size={24} color="#b3ccff" />
               </TouchableOpacity>
             </View>
             <AddVehicle 
@@ -952,7 +949,7 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#f5faff',
   },
   scrollContainer: {
     paddingTop: 120,
@@ -970,9 +967,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     paddingTop: 50,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0052cc',
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#003087',
     minHeight: 100,
   },
   headerContent: {
@@ -984,13 +981,7 @@ const styles = StyleSheet.create({
   shopName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1e293b',
-  },
-  phoneNumber: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#000',
-    marginTop: 2,
+    color: '#ffffff',
   },
   subscriptionContainer: {
     marginTop: 4,
@@ -1002,9 +993,9 @@ const styles = StyleSheet.create({
   },
   trialIndicator: {
     fontSize: 12,
-    color: '#16a34a',
+    color: '#ffffff',
     fontWeight: '600',
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#003087',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -1012,9 +1003,9 @@ const styles = StyleSheet.create({
   },
   subscriptionIndicator: {
     fontSize: 12,
-    color: '#2563eb',
+    color: '#ffffff',
     fontWeight: '600',
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#003087',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
@@ -1022,7 +1013,7 @@ const styles = StyleSheet.create({
   },
   expiryText: {
     fontSize: 11,
-    color: '#64748b',
+    color: '#b3ccff',
   },
   notificationIcon: {
     padding: 6,
@@ -1035,7 +1026,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#ef4444',
+    backgroundColor: '#ff4d4f',
   },
   section: {
     marginTop: 24,
@@ -1045,13 +1036,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop:10,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1e293b',
+    marginTop: 10,
     marginBottom: 16,
   },
   searchContainer: {
@@ -1059,7 +1044,7 @@ const styles = StyleSheet.create({
   },
   searchTypeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#e6f0fa',
     borderRadius: 8,
     padding: 4,
     marginBottom: 12,
@@ -1081,19 +1066,27 @@ const styles = StyleSheet.create({
   },
   searchTypeText: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#0052cc',
     fontWeight: '500',
   },
   activeSearchTypeText: {
-    color: '#2563eb',
+    color: '#003087',
     fontWeight: '600',
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-    paddingVertical: 4,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#0052cc',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   searchIcon: {
     marginRight: 8,
@@ -1101,22 +1094,31 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#1e293b',
+    color: '#000000',
     paddingVertical: 8,
     paddingHorizontal: 0,
   },
   clearIcon: {
-    padding: 4,
+    padding: 8,
+    backgroundColor: '#e6f0fa',
+    borderRadius: 16,
   },
   addCustomerIconButton: {
-    padding: 4,
+    padding: 8,
+    backgroundColor: '#0052cc',
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   inlineAddCustomerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0052cc',
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1124,7 +1126,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   inlineAddCustomerButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: 15,
     marginLeft: 4,
@@ -1178,7 +1180,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0052cc',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1194,13 +1196,13 @@ const styles = StyleSheet.create({
   },
   customerName: {
     fontSize: 12,
-    color: '#1e293b',
+    color: '#000000',
     fontWeight: '400',
     marginBottom: 2,
   },
   boldPhoneNumber: {
     fontSize: 15,
-    color: '#64748b',
+    color: '#000000',
     fontWeight: '700',
     marginBottom: 4,
   },
@@ -1209,9 +1211,9 @@ const styles = StyleSheet.create({
   },
   vehicleNumberText: {
     fontSize: 12,
-    color: '#2563eb',
+    color: '#ffffff',
     fontWeight: '600',
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#003087',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -1219,12 +1221,12 @@ const styles = StyleSheet.create({
   },
   vehicleCount: {
     fontSize: 14,
-    color: '#475569',
+    color: '#000000',
     marginBottom: 2,
   },
   addedTime: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#000000',
   },
   customerActions: {
     flexDirection: 'row',
@@ -1235,7 +1237,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#003087',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1247,7 +1249,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#b3ccff',
     marginBottom: 12,
   },
   vehiclesSection: {
@@ -1256,7 +1258,7 @@ const styles = StyleSheet.create({
   vehiclesTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 8,
   },
   vehicleItem: {
@@ -1269,12 +1271,12 @@ const styles = StyleSheet.create({
   },
   vehicleText: {
     fontSize: 14,
-    color: '#475569',
+    color: '#000000',
     marginLeft: 8,
   },
   noVehiclesText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#000000',
     fontStyle: 'italic',
     textAlign: 'center',
     padding: 12,
@@ -1294,10 +1296,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addVehicleButton: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0052cc',
   },
   nextButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#003087',
   },
   addButtonText: {
     color: '#ffffff',
@@ -1319,7 +1321,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 10,
-    color: '#64748b',
+    color: '#000000',
   },
   emptyContainer: {
     padding: 40,
@@ -1328,55 +1330,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 10,
-    color: '#94a3b8',
+    color: '#000000',
     fontSize: 16,
     marginBottom: 16,
   },
-  inlineAddCustomerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginTop: 12,
-    alignSelf: 'flex-start',
-  },
-  inlineAddCustomerButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 15,
-    marginLeft: 4,
-  },
-  addCustomerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  addCustomerButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  addFirstCustomerBtn: {
-    backgroundColor: '#2563eb',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  addFirstCustomerText: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 82, 204, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1393,12 +1353,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+    borderBottomColor: '#b3ccff',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
     flex: 1,
   },
   closeButton: {
@@ -1418,7 +1378,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   backButtonText: {
-    color: '#2563eb',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 6,
@@ -1442,7 +1402,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0052cc',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1453,25 +1413,25 @@ const styles = StyleSheet.create({
   formCustomerName: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   formCustomerPhone: {
     fontSize: 16,
-    color: '#64748b',
+    color: '#000000',
     fontWeight: '600',
   },
   callButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#003087',
     justifyContent: 'center',
     alignItems: 'center',
   },
   formDivider: {
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#b3ccff',
     marginVertical: 20,
   },
   formSection: {
@@ -1480,7 +1440,7 @@ const styles = StyleSheet.create({
   formSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 16,
   },
   formRow: {
@@ -1495,13 +1455,13 @@ const styles = StyleSheet.create({
   formLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#000000',
     width: 80,
     marginRight: 16,
   },
   formValue: {
     fontSize: 14,
-    color: '#1e293b',
+    color: '#000000',
     flex: 1,
   },
   vehiclesSectionHeader: {
@@ -1514,7 +1474,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#dbeafe',
+    backgroundColor: '#003087',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1529,7 +1489,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
     borderLeftWidth: 4,
-    borderLeftColor: '#2563eb',
+    borderLeftColor: '#0052cc',
   },
   vehicleFormInfo: {
     flex: 1,
@@ -1538,12 +1498,12 @@ const styles = StyleSheet.create({
   vehicleFormName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1e293b',
+    color: '#000000',
     marginBottom: 4,
   },
   vehicleFormDetails: {
     fontSize: 14,
-    color: '#64748b',
+    color: '#000000',
   },
   noVehiclesContainer: {
     alignItems: 'center',
@@ -1552,7 +1512,7 @@ const styles = StyleSheet.create({
   },
   noVehiclesFormText: {
     fontSize: 16,
-    color: '#94a3b8',
+    color: '#000000',
     marginTop: 12,
     marginBottom: 20,
     textAlign: 'center',
@@ -1560,7 +1520,7 @@ const styles = StyleSheet.create({
   addFirstVehicleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2563eb',
+    backgroundColor: '#0052cc',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -1575,7 +1535,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderTopColor: '#b3ccff',
   },
   actionButton: {
     flexDirection: 'row',
@@ -1587,7 +1547,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   addServiceFormButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#003087',
   },
   actionButtonText: {
     color: '#ffffff',
