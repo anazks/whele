@@ -116,7 +116,7 @@ export const addService = async (Data: any) => {
       "/interaction/user/interactions/services/",
       payload
     );
-
+console.log(response,"add service response")
     return response.data;
   } catch (error: any) {
     if (error.response) {

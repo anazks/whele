@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -17,10 +16,11 @@ import {
 } from 'react-native';
 import { addService, getCustomerVehicles } from '../../api/Services/management';
 
-// Service type choices (restricted to Wheel Alignment and Balancing)
+// Service type choices (including 'other' for backend when both are selected)
 const SERVICE_TYPE_CHOICES = [
   { value: 'alignment', label: 'Wheel Alignment', icon: 'build' },
   { value: 'balancing', label: 'Balancing', icon: 'tune' },
+  { value: 'other', label: 'Wheel Alignment and Balancing', icon: 'settings' },
 ];
 
 const styles = {
@@ -157,7 +157,7 @@ const styles = {
   },
   placeholderText: {
     fontSize: 16,
-    color: '#888',
+    color: '##888',
   },
   chevronIcon: {
     padding: 4,
@@ -297,59 +297,6 @@ const styles = {
     fontWeight: '600',
     marginLeft: 8,
   },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
-    maxHeight: '60%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-  },
-  modalCloseButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalList: {
-    paddingBottom: 16,
-  },
-  serviceTypeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  serviceTypeIcon: {
-    marginRight: 12,
-  },
-  serviceTypeName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    flex: 1,
-  },
   loadingContainer: {
     alignItems: 'center',
     padding: 16,
@@ -359,17 +306,41 @@ const styles = {
     color: '#666',
     marginTop: 8,
   },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+    paddingVertical: 8,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#007bff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: '#007bff',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
 };
 
 export default function AddService() {
   const { customerId, customerName, customerPhone, customerEmail } = useLocalSearchParams();
   
-  const [showServiceTypeSelection, setShowServiceTypeSelection] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [currentLanguage, setCurrentLanguage] = useState('english');
-  const [serviceInterval, setServiceInterval] = useState('5000'); // This stores the interval (e.g., 5000 km)
+  const [serviceInterval, setServiceInterval] = useState('5000');
   const [showNextKilometerInput, setShowNextKilometerInput] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [selectedServiceTypes, setSelectedServiceTypes] = useState([]);
 
   const selectedCustomer = {
     id: customerId,
@@ -400,13 +371,11 @@ export default function AddService() {
       serviceAdded: "Service added successfully!",
       failedAddService: "Failed to add service. Please try again.",
       vehicleRequired: "Please select a vehicle",
-      serviceTypeRequired: "Please select service type",
+      serviceTypeRequired: "Please select at least one service type",
       nextKilometerRequired: "Next kilometer is required",
       validPrice: "Enter a valid price",
       validKilometers: "Enter valid kilometers",
       validNextKilometer: "Enter valid next kilometers",
-      selectServiceTypeTitle: "Choose Service Type",
-      close: "Close",
       noVehicles: "No vehicles found",
       noVehiclesMsg: "Add a vehicle first to continue",
       vehicle: "Vehicle",
@@ -414,6 +383,7 @@ export default function AddService() {
       changeValue: "Change",
       alignment: "Wheel Alignment",
       balancing: "Balancing",
+      other: "Wheel Alignment and Balancing",
       serviceIntervalTitle: "Service Interval Setting",
       serviceIntervalDesc: "This is added to current kilometers to calculate next service",
     },
@@ -438,13 +408,11 @@ export default function AddService() {
       serviceAdded: "सेवा सफलतापूर्वक जोड़ी गई!",
       failedAddService: "सेवा जोड़ने में विफल। कृपया पुनः प्रयास करें।",
       vehicleRequired: "कृपया एक वाहन चुनें",
-      serviceTypeRequired: "कृपया सेवा प्रकार चुनें",
+      serviceTypeRequired: "कृपया कम से कम एक सेवा प्रकार चुनें",
       nextKilometerRequired: "अगला किलोमीटर आवश्यक है",
       validPrice: "एक वैध मूल्य दर्ज करें",
       validKilometers: "वैध किलोमीटर दर्ज करें",
       validNextKilometer: "वैध अगला किलोमीटर दर्ज करें",
-      selectServiceTypeTitle: "सेवा प्रकार चुनें",
-      close: "बंद करें",
       noVehicles: "कोई वाहन नहीं मिला",
       noVehiclesMsg: "जारी रखने के लिए पहले एक वाहन जोड़ें",
       vehicle: "वाहन",
@@ -452,6 +420,7 @@ export default function AddService() {
       changeValue: "बदलें",
       alignment: "व्हील अलाइनमेंट",
       balancing: "बैलेंसिंग",
+      other: "व्हील अलाइनमेंट और बैलेंसिंग",
       serviceIntervalTitle: "सेवा अंतराल सेटिंग",
       serviceIntervalDesc: "यह अगली सेवा की गणना के लिए वर्तमान किलोमीटर में जोड़ा जाता है",
     }
@@ -486,19 +455,17 @@ export default function AddService() {
 
   const loadServiceInterval = async () => {
     try {
-      // Load the service interval (not the absolute next kilometer)
       const savedServiceInterval = await AsyncStorage.getItem('service_interval');
       if (savedServiceInterval) {
         setServiceInterval(savedServiceInterval);
       } else {
-        // Set default service interval to 5000 km
         setServiceInterval('5000');
         await AsyncStorage.setItem('service_interval', '5000');
       }
     } catch (error) {
       console.error('Error loading service interval:', error);
       Alert.alert('Error', 'Failed to load service interval data.');
-      setServiceInterval('5000'); // Fallback to default
+      setServiceInterval('5000');
     }
   };
 
@@ -507,7 +474,6 @@ export default function AddService() {
       await AsyncStorage.setItem('service_interval', value);
       setServiceInterval(value);
       
-      // Recalculate next service km if current km is available
       if (serviceForm.kilometers && !isNaN(serviceForm.kilometers)) {
         const currentKm = parseFloat(serviceForm.kilometers);
         const intervalKm = parseFloat(value);
@@ -544,35 +510,59 @@ export default function AddService() {
   }, [customerId]);
 
   const handleServiceChange = (name, value) => {
-    setServiceForm(prev => {
-      const updatedForm = { ...prev, [name]: value };
-      
-      if (name === 'kilometers' && value && !isNaN(value) && parseFloat(value) >= 0) {
-        const currentKm = parseFloat(value);
-        const storedInterval = parseFloat(serviceInterval) || 5000; // Default to 5000 if no stored value
-        const calculatedNextKm = currentKm + storedInterval;
+    // If it's the kilometers field, only allow numeric input
+    if (name === 'kilometers') {
+      // Remove any non-numeric characters
+      const numericValue = value.replace(/[^0-9]/g, '');
+      setServiceForm(prev => {
+        const updatedForm = { ...prev, [name]: numericValue };
         
-        updatedForm.next_kilometer_input = calculatedNextKm.toString();
-      } else if (name === 'kilometers' && (!value || isNaN(value))) {
-        updatedForm.next_kilometer_input = '';
-      }
-      
-      return updatedForm;
-    });
+        if (numericValue && !isNaN(numericValue) && parseInt(numericValue, 10) >= 0) {
+          const currentKm = parseInt(numericValue, 10);
+          const storedInterval = parseInt(serviceInterval, 10) || 5000;
+          const calculatedNextKm = currentKm + storedInterval;
+          
+          updatedForm.next_kilometer_input = calculatedNextKm.toString();
+        } else if (!numericValue || isNaN(numericValue)) {
+          updatedForm.next_kilometer_input = '';
+        }
+        
+        return updatedForm;
+      });
+    } else {
+      setServiceForm(prev => ({ ...prev, [name]: value }));
+    }
     
     if (errors[name]) setErrors({ ...errors, [name]: '' });
   };
 
   const handleNextKilometerChange = (value) => {
-    setServiceForm({ ...serviceForm, next_kilometer_input: value });
+    // Only allow numeric input for next kilometer
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setServiceForm({ ...serviceForm, next_kilometer_input: numericValue });
     if (errors.next_kilometer) setErrors({ ...errors, next_kilometer: '' });
   };
 
-  // Add this new function to calculate and display the next service kilometers
-  const calculateNextServiceKm = () => {
-    const currentKm = parseFloat(serviceForm.kilometers) || 0;
-    const intervalKm = parseFloat(serviceInterval) || 5000;
-    return currentKm + intervalKm;
+  const toggleServiceType = (serviceType) => {
+    setSelectedServiceTypes(prev => {
+      const newSelection = prev.includes(serviceType.value)
+        ? prev.filter(type => type !== serviceType.value)
+        : [...prev, serviceType.value];
+      
+      // If both alignment and balancing are selected, set service_type to 'other'
+      const serviceTypeValue = newSelection.length === 2 && newSelection.includes('alignment') && newSelection.includes('balancing')
+        ? 'other'
+        : newSelection.join(', ');
+      
+      setServiceForm(prevForm => ({
+        ...prevForm,
+        service_type: serviceTypeValue
+      }));
+      
+      return newSelection;
+    });
+    
+    if (errors.service_type) setErrors({ ...errors, service_type: '' });
   };
 
   const validateServiceForm = () => {
@@ -592,7 +582,7 @@ export default function AddService() {
     if (!nextKilometerValue || nextKilometerValue.trim() === '') {
       newErrors.next_kilometer = t('nextKilometerRequired');
       valid = false;
-    } else if (isNaN(nextKilometerValue) || parseFloat(nextKilometerValue) < 0) {
+    } else if (isNaN(nextKilometerValue) || parseInt(nextKilometerValue, 10) < 0) {
       newErrors.next_kilometer = t('validNextKilometer');
       valid = false;
     }
@@ -601,7 +591,7 @@ export default function AddService() {
       newErrors.price = t('validPrice');
       valid = false;
     }
-    if (serviceForm.kilometers && (isNaN(serviceForm.kilometers) || parseFloat(serviceForm.kilometers) < 0)) {
+    if (serviceForm.kilometers && (isNaN(serviceForm.kilometers) || parseInt(serviceForm.kilometers, 10) < 0)) {
       newErrors.kilometers = t('validKilometers');
       valid = false;
     }
@@ -610,63 +600,66 @@ export default function AddService() {
     return valid;
   };
 
-  const handleServiceSubmit = async () => {
-    if (validateServiceForm()) {
-      setLoading(true);
-      try {
-        const nextKilometerValue = serviceForm.next_kilometer_input;
-        
-        const priceValue = serviceForm.price ? parseFloat(serviceForm.price) : 0;
-        const serviceData = {
-          customer: serviceForm.customer,
-          vehicle: serviceForm.vehicle,
-          service_type: serviceForm.service_type,
-          description: serviceForm.description,
-          price: priceValue,
-          kilometers: serviceForm.kilometers ? parseFloat(serviceForm.kilometers) : null,
-          next_service_due_date: serviceForm.next_service_due_date || null,
-          next_kilometer: parseFloat(nextKilometerValue)
-        };
-        
-        await addService(serviceData);
-        
-        Alert.alert(
-          'Success!',
-          t('serviceAdded'),
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setServiceForm({
-                  customer: customerId,
-                  vehicle: '',
-                  service_type: '',
-                  description: '',
-                  price: '',
-                  kilometers: '',
-                  next_service_due_date: '',
-                  next_kilometer_input: ''
-                });
-                setSelectedVehicle(null);
-                setShowNextKilometerInput(false);
-                router.push('/(tabs)/History');
-              }
-            }
-          ]
-        );
-      } catch (error) {
-        console.error('Error submitting service:', error);
-        Alert.alert('Error', t('failedAddService'));
-      } finally {
-        setLoading(false);
+const handleServiceSubmit = async () => {
+  if (validateServiceForm()) {
+    setLoading(true);
+    try {
+      const nextKilometerValue = serviceForm.next_kilometer_input;
+      
+      // Ensure kilometers is a proper integer or null
+      let kilometersValue = null;
+      if (serviceForm.kilometers && !isNaN(serviceForm.kilometers) && parseInt(serviceForm.kilometers, 10) >= 0) {
+        kilometersValue = parseInt(serviceForm.kilometers, 10); // Convert to integer
       }
+      
+      const priceValue = serviceForm.price ? parseFloat(serviceForm.price) : 0;
+      
+      const serviceData = {
+        customer: serviceForm.customer,
+        vehicle: serviceForm.vehicle,
+        service_type: serviceForm.service_type, // Will be 'other' if both alignment and balancing are selected
+        description: serviceForm.description,
+        price: priceValue,
+        kilometer: kilometersValue, // Changed from 'kilometers' to 'kilometer'
+        next_service_due_date: serviceForm.next_service_due_date || null,
+        next_kilometer: parseInt(nextKilometerValue, 10) // Ensure this is also an integer
+      };
+      
+      await addService(serviceData);
+      
+      Alert.alert(
+        'Success!',
+        t('serviceAdded'),
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setServiceForm({
+                customer: customerId,
+                vehicle: '',
+                service_type: '',
+                description: '',
+                price: '',
+                kilometers: '',
+                next_service_due_date: '',
+                next_kilometer_input: ''
+              });
+              setSelectedServiceTypes([]);
+              setSelectedVehicle(null);
+              setShowNextKilometerInput(false);
+              router.push('/(tabs)/History');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting service:', error);
+      Alert.alert('Error', t('failedAddService'));
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const selectServiceType = (serviceType) => {
-    setServiceForm({ ...serviceForm, service_type: serviceType.value });
-    setShowServiceTypeSelection(false);
-  };
+  }
+};
 
   const selectVehicle = (vehicle) => {
     setSelectedVehicle(vehicle);
@@ -674,13 +667,25 @@ export default function AddService() {
   };
 
   const getTranslatedServiceType = (value) => {
+    if (!value) return '';
+    
+    if (value === 'other') {
+      // Display both service types when 'other' is set
+      return SERVICE_TYPE_CHOICES
+        .filter(st => st.value === 'alignment' || st.value === 'balancing')
+        .map(st => t(st.value))
+        .join(', ');
+    }
+    
+    if (value.includes(', ')) {
+      return value.split(', ').map(service => {
+        const serviceType = SERVICE_TYPE_CHOICES.find(st => st.value === service);
+        return serviceType ? t(serviceType.value) : service;
+      }).join(', ');
+    }
+    
     const serviceType = SERVICE_TYPE_CHOICES.find(st => st.value === value);
     return serviceType ? t(serviceType.value) : value;
-  };
-
-  const getServiceTypeIcon = (value) => {
-    const serviceType = SERVICE_TYPE_CHOICES.find(st => st.value === value);
-    return serviceType ? serviceType.icon : 'build';
   };
 
   return (
@@ -793,40 +798,43 @@ export default function AddService() {
               <Text>{t('serviceDetails')}</Text>
             </View>
 
-            {/* Service Type */}
+            {/* Service Type - Updated to use checkboxes */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>
                 {t('serviceType')}
                 <Text style={styles.requiredStar}>*</Text>
               </Text>
-              <TouchableOpacity
-                style={[
-                  styles.selector,
-                  showServiceTypeSelection && styles.selectorFocused,
-                  errors.service_type && styles.inputError
-                ]}
-                onPress={() => setShowServiceTypeSelection(true)}
-              >
-                {serviceForm.service_type ? (
-                  <View style={styles.selectedContent}>
-                    <MaterialIcons 
-                      name={getServiceTypeIcon(serviceForm.service_type)} 
-                      size={20} 
-                      color="#007bff" 
-                      style={styles.selectedIcon}
-                    />
-                    <Text style={styles.selectedText}>
-                      {getTranslatedServiceType(serviceForm.service_type)}
-                    </Text>
+              
+              {SERVICE_TYPE_CHOICES.filter(st => st.value !== 'other').map((serviceType) => (
+                <TouchableOpacity
+                  key={serviceType.value}
+                  style={styles.checkboxContainer}
+                  onPress={() => toggleServiceType(serviceType)}
+                >
+                  <View style={[
+                    styles.checkbox,
+                    selectedServiceTypes.includes(serviceType.value) && styles.checkboxChecked
+                  ]}>
+                    {selectedServiceTypes.includes(serviceType.value) && (
+                      <MaterialIcons name="check" size={16} color="#fff" />
+                    )}
                   </View>
-                ) : (
-                  <Text style={styles.placeholderText}>{t('selectServiceType')}</Text>
-                )}
-                <View style={styles.chevronIcon}>
-                  <Ionicons name="chevron-down" size={16} color="#666" />
-                </View>
-              </TouchableOpacity>
+                  <Text style={styles.checkboxLabel}>
+                    {t(serviceType.value)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              
               {errors.service_type ? <Text style={styles.errorText}>{errors.service_type}</Text> : null}
+              
+              {/* Display selected services */}
+              {serviceForm.service_type ? (
+                <View style={{ marginTop: 8, padding: 8, backgroundColor: '#f0f8ff', borderRadius: 6 }}>
+                  <Text style={{ fontSize: 14, color: '#007bff', fontWeight: '500' }}>
+                    Selected: {getTranslatedServiceType(serviceForm.service_type)}
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             {/* Description */}
@@ -837,7 +845,7 @@ export default function AddService() {
                   style={[
                     styles.input,
                     styles.textArea,
-                    focusedField === 'description' && styles.inputFocused
+                    focusedField === 'description' ? styles.inputFocused : null
                   ]}
                   placeholder={t('enterServiceDescription')}
                   placeholderTextColor="#888"
@@ -866,16 +874,16 @@ export default function AddService() {
                 <TextInput
                   style={[
                     styles.input,
-                    focusedField === 'kilometers' && styles.inputFocused,
+                    focusedField === 'kilometers' ? styles.inputFocused : null,
                     errors.kilometers && styles.inputError
                   ]}
                   placeholder={t('enterKilometers')}
                   placeholderTextColor="#888"
-                  keyboardType="decimal-pad"
+                  keyboardType="numeric"
                   value={serviceForm.kilometers}
                   onChangeText={(text) => handleServiceChange('kilometers', text)}
                   onFocus={() => setFocusedField('kilometers')}
-                  onBlur={() => setFocusedField('kilometers')}
+                  onBlur={() => setFocusedField(null)}
                 />
               </View>
               {errors.kilometers ? <Text style={styles.errorText}>{errors.kilometers}</Text> : null}
@@ -915,12 +923,12 @@ export default function AddService() {
                   <TextInput
                     style={[
                       styles.input,
-                      focusedField === 'nextKilometer' && styles.inputFocused,
+                      focusedField === 'nextKilometer' ? styles.inputFocused : null,
                       errors.next_kilometer && styles.inputError
                     ]}
                     placeholder={t('enterNextKilometer')}
                     placeholderTextColor="#888"
-                    keyboardType="decimal-pad"
+                    keyboardType="numeric"
                     value={serviceForm.next_kilometer_input}
                     onChangeText={handleNextKilometerChange}
                     onFocus={() => setFocusedField('nextKilometer')}
@@ -938,7 +946,7 @@ export default function AddService() {
                 <TextInput
                   style={[
                     styles.input,
-                    focusedField === 'price' && styles.inputFocused,
+                    focusedField === 'price' ? styles.inputFocused : null,
                     errors.price && styles.inputError
                   ]}
                   placeholder={t('enterServicePrice')}
@@ -971,47 +979,6 @@ export default function AddService() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {/* Service Type Selection Modal */}
-      <Modal
-        visible={showServiceTypeSelection}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowServiceTypeSelection(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('selectServiceTypeTitle')}</Text>
-              <TouchableOpacity
-                style={styles.modalCloseButton}
-                onPress={() => setShowServiceTypeSelection(false)}
-              >
-                <MaterialIcons name="close" size={16} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.modalList}>
-              {SERVICE_TYPE_CHOICES.map((serviceType) => (
-                <TouchableOpacity
-                  key={serviceType.value}
-                  style={styles.serviceTypeItem}
-                  onPress={() => selectServiceType(serviceType)}
-                >
-                  <MaterialIcons 
-                    name={serviceType.icon} 
-                    size={20} 
-                    color="#007bff" 
-                    style={styles.serviceTypeIcon}
-                  />
-                  <Text style={styles.serviceTypeName}>{t(serviceType.value)}</Text>
-                  <MaterialIcons name="chevron-right" size={20} color="#888" />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

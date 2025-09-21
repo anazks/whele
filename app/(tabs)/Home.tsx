@@ -7,13 +7,13 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Keyboard,
   Linking,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -27,6 +27,7 @@ import Banner from '../Screen/Component/Banner';
 import SideBar from '../Screen/Component/SideBar';
 import AddVehicle from '../Screen/Owner/AddVehicle';
 import CustomerAdd from '../Screen/Owner/CustomerAdd';
+import { styles } from '../Style/Home';
 
 const { width } = Dimensions.get('window');
 
@@ -101,6 +102,7 @@ interface UpcomingService {
 
 export default function Home() {
   const scrollY = useRef(new Animated.Value(0)).current;
+  const searchBarTranslateY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
   const [userData, setUserData] = useState<UserData>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +110,6 @@ export default function Home() {
   const [customersLoading, setCustomersLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
   const [currentLanguage, setCurrentLanguage] = useState('english');
-  
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     total_services: 0,
     total_revenue: 0,
@@ -117,25 +118,55 @@ export default function Home() {
   const [upcomingServicesData, setUpcomingServicesData] = useState<UpcomingService[]>([]);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [dashboardLoading, setDashboardLoading] = useState(true);
-
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
   const [selectedCustomerForVehicle, setSelectedCustomerForVehicle] = useState<Customer | null>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [filteredRecentCustomers, setFilteredRecentCustomers] = useState<Customer[]>([]);
   const [expandedCustomerId, setExpandedCustomerId] = useState<number | null>(null);
-
   const [showAddCustomer, setShowAddCustomer] = useState(false);
-  
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerVehicles, setCustomerVehicles] = useState<CustomerVehicle[]>([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
-
   const [isSearchingByVehicle, setIsSearchingByVehicle] = useState(false);
   const [vehicleSearchResults, setVehicleSearchResults] = useState<Customer[]>([]);
+  const [showRecentCustomers, setShowRecentCustomers] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+  const [selectedCartCustomer, setSelectedCartCustomer] = useState<Customer | null>(null);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   const t = (key: string) => {
     return translations[currentLanguage][key] || key;
   };
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+        Animated.timing(searchBarTranslateY, {
+          toValue: 80, // Move down to avoid navbar
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+        Animated.timing(searchBarTranslateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, [searchBarTranslateY]);
 
   const loadLanguagePreference = async () => {
     try {
@@ -170,7 +201,8 @@ export default function Home() {
         const customersResponse = await getCustomer();
         if (customersResponse && Array.isArray(customersResponse)) {
           const filteredCustomers = customersResponse.filter(customer => 
-            customerIds.has(customer.id)
+            customerIds.has(customer.id) ||
+            customer.phone.includes(vehicleNumber)
           );
           
           return filteredCustomers.map(customer => ({
@@ -240,19 +272,22 @@ export default function Home() {
 
   useEffect(() => {
     if (customerSearchQuery) {
+      setShowRecentCustomers(true);
       if (isSearchingByVehicle) {
         handleVehicleSearch(customerSearchQuery);
       } else {
         const filtered = recentCustomers.filter(customer => 
-          customer.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
-          customer.phone.includes(customerSearchQuery)
+          customer.phone.includes(customerSearchQuery) ||
+          customer.name.toLowerCase().includes(customerSearchQuery.toLowerCase())
         );
         setFilteredRecentCustomers(filtered);
       }
     } else {
-      setFilteredRecentCustomers(recentCustomers);
+      setShowRecentCustomers(false);
+      setFilteredRecentCustomers([]);
       setVehicleSearchResults([]);
       setShowAddCustomer(false);
+      setShowCart(false);
     }
   }, [customerSearchQuery, recentCustomers, isSearchingByVehicle]);
 
@@ -278,8 +313,8 @@ export default function Home() {
     setShowAddVehicleModal(false);
     setSelectedCustomerForVehicle(null);
     onRefresh();
-    if (selectedCustomer) {
-      fetchCustomerVehicles(selectedCustomer.id);
+    if (selectedCustomer || selectedCartCustomer) {
+      fetchCustomerVehicles((selectedCustomer || selectedCartCustomer)!.id);
     }
   };
 
@@ -307,6 +342,14 @@ export default function Home() {
       }
     }
     setShowAddCustomer(true);
+  };
+
+  const handleMobileNumberSelect = (customer: Customer) => {
+    setSelectedCartCustomer(customer);
+    setShowCart(true);
+    setCustomerSearchQuery('');
+    setShowRecentCustomers(false);
+    fetchCustomerVehicles(customer.id);
   };
 
   const isPhoneNumber = (query: string) => {
@@ -405,7 +448,6 @@ export default function Home() {
       const response = await getCustomer();
       if (response && Array.isArray(response)) {
         setTotalCustomers(response.length);
-        const limitedCustomers = response.slice(0, 5);
         setRecentCustomers(response);
         setFilteredRecentCustomers(response);
       } else {
@@ -501,6 +543,89 @@ export default function Home() {
 
   const formatCurrency = (amount: number) => {
     return `₹${amount.toLocaleString('en-IN')}`;
+  };
+
+  const renderCart = () => {
+    if (!showCart || !selectedCartCustomer) return null;
+
+    return (
+      <View style={styles.cartContainer}>
+        <View style={styles.cartHeader}>
+          <Text style={styles.cartTitle}>{t('cartFor')} {selectedCartCustomer.name}</Text>
+          <TouchableOpacity 
+            style={styles.closeCartButton}
+            onPress={() => {
+              setShowCart(false);
+              setSelectedCartCustomer(null);
+            }}
+          >
+            <MaterialIcons name="close" size={24} color="#b3ccff" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.cartContent}>
+          <View style={styles.cartCustomerInfo}>
+            <Text style={styles.cartCustomerName}>{selectedCartCustomer.name}</Text>
+            <Text style={styles.cartCustomerPhone}>{selectedCartCustomer.phone}</Text>
+            <Text style={styles.cartCustomerEmail}>{selectedCartCustomer.email || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.cartDivider} />
+
+          <View style={styles.cartVehiclesSection}>
+            <Text style={styles.cartSectionTitle}>{t('vehicles')} ({customerVehicles.length})</Text>
+            {vehiclesLoading ? (
+              <View style={styles.vehiclesLoadingContainer}>
+                <ActivityIndicator size="small" color="#0052cc" />
+                <Text style={styles.loadingText}>{t('loadingVehicles')}</Text>
+              </View>
+            ) : customerVehicles.length > 0 ? (
+              customerVehicles.map((vehicle, index) => (
+                <View key={vehicle.id} style={styles.cartVehicleItem}>
+                  <MaterialIcons name="directions-car" size={20} color="#0052cc" />
+                  <View style={styles.vehicleInfo}>
+                    <Text style={styles.vehicleName}>{vehicle.vehicle_display_name}</Text>
+                    <Text style={styles.vehicleDetails}>
+                      {t('plate')}: {vehicle.vehicle_number}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.noVehiclesContainer}>
+                <Text style={styles.noVehiclesText}>{t('noVehicles')}</Text>
+                <TouchableOpacity
+                  style={styles.addVehicleButton}
+                  onPress={() => handleAddVehicleForCustomer(selectedCartCustomer)}
+                >
+                  <MaterialIcons name="add" size={16} color="#ffffff" />
+                  <Text style={styles.addButtonText}>{t('addVehicle')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.cartActions}>
+            <TouchableOpacity
+              style={styles.cartActionButton}
+              onPress={() => {
+                router.push({
+                  pathname: '/Screen/Owner/AddService',
+                  params: { 
+                    customerId: selectedCartCustomer.id.toString(),
+                    customerName: selectedCartCustomer.name,
+                    customerPhone: selectedCartCustomer.phone
+                  }
+                });
+              }}
+            >
+              <MaterialIcons name="build" size={18} color="#ffffff" />
+              <Text style={styles.cartActionButtonText}>{t('addService')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   const renderSelectedCustomerForm = () => {
@@ -656,7 +781,6 @@ export default function Home() {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <View style={styles.headerMainInfo}>
-            {/* <Text style={styles.shopName}>{userData.service_center_name || userData.name || 'LINJU Wheel Service'}</Text> */}
             {userData.is_trial_active ? (
               <View style={styles.subscriptionStatus}>
                 <Text style={styles.trialIndicator}>{t('trialActive')}</Text>
@@ -673,9 +797,6 @@ export default function Home() {
               </View>
             ) : null}
           </View>
-          {/* <TouchableOpacity style={styles.notificationIcon}>
-            <MaterialIcons name="notifications" size={24} color="#ffffff" />
-          </TouchableOpacity> */}
         </View>
       </Animated.View>
 
@@ -693,17 +814,21 @@ export default function Home() {
           />
         }
       >
-        <View style={styles.banner}>
-          <Banner />
-        </View>
+        {!isKeyboardVisible && (
+          <View style={styles.banner}>
+            <Banner />
+          </View>
+        )}
 
-        {selectedCustomer ? (
+        {showCart ? (
+          renderCart()
+        ) : selectedCustomer ? (
           renderSelectedCustomerForm()
         ) : (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-            </View>
-
+          <Animated.View style={[styles.section, {
+            transform: [{ translateY: searchBarTranslateY }],
+            marginTop: isKeyboardVisible ? 20 : 0
+          }]}>
             <View style={styles.searchContainer}>
               <View style={styles.searchTypeToggle}>
                 <TouchableOpacity 
@@ -737,6 +862,7 @@ export default function Home() {
                   placeholderTextColor="#b3ccff"
                   value={customerSearchQuery}
                   onChangeText={setCustomerSearchQuery}
+                  autoCapitalize="characters"
                 />
                 {customerSearchQuery.length > 0 ? (
                   <TouchableOpacity onPress={() => setCustomerSearchQuery('')}>
@@ -778,138 +904,131 @@ export default function Home() {
               </View>
             )}
 
-            {!customersLoading && !showAddCustomer && displayCustomers.length === 0 && !customerSearchQuery && (
-              <View style={styles.addCustomerContainer}>
-                <CustomerAdd onCustomerAdded={handleCustomerAdded} />
+            {showRecentCustomers && !showAddCustomer && (
+              <View style={styles.customersContainer}>
+                {customersLoading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="#0052cc" />
+                    <Text style={styles.loadingText}>{t('loadingCustomers')}</Text>
+                  </View>
+                ) : displayCustomers.length > 0 ? (
+                  displayCustomers.map((customer, index) => (
+                    <View 
+                      key={customer.id} 
+                      style={[
+                        styles.customerCardWrapper,
+                        index === displayCustomers.length - 1 && { marginBottom: 0 }
+                      ]}
+                    >
+                      <TouchableOpacity 
+                        style={[styles.customerCard, expandedCustomerId === customer.id && styles.expandedCustomerCard]}
+                        activeOpacity={0.8}
+                        onPress={() => handleMobileNumberSelect(customer)}
+                      >
+                        <View style={styles.customerTopRow}>
+                          <View style={styles.customerAvatar}>
+                            <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
+                          </View>
+                          <View style={styles.customerInfo}>
+                            <Text style={styles.boldPhoneNumber}>{customer.phone}</Text>
+                            <Text style={styles.customerName}>{customer.name}</Text>
+                            {isSearchingByVehicle && customer.vehicles && customer.vehicles.length > 0 && (
+                              <View style={styles.vehicleSearchInfo}>
+                                {customer.vehicles.map(vehicle => (
+                                  <Text key={vehicle.id} style={styles.vehicleNumberText}>
+                                    {vehicle.vehicle_number} • {vehicle.vehicle_type_name}
+                                  </Text>
+                                ))}
+                              </View>
+                            )}
+                            <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
+                            <Text style={styles.addedTime}>{t('added')} {formatDate(customer.date_added)}</Text>
+                          </View>
+                          <View style={styles.customerActions}>
+                            <TouchableOpacity 
+                              style={styles.actionIcon}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleCall(customer.phone);
+                              }}
+                            >
+                              <MaterialIcons name="phone" size={20} color="#ffffff" />
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                              style={styles.expandIcon}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                toggleCustomerExpansion(customer.id);
+                              }}
+                            >
+                              <MaterialIcons 
+                                name={expandedCustomerId === customer.id ? "expand-less" : "expand-more"} 
+                                size={24} 
+                                color="#b3ccff" 
+                              />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        
+                        {expandedCustomerId === customer.id && (
+                          <View style={styles.expandedContent}>
+                            <View style={styles.divider} />
+                            <View style={styles.vehiclesSection}>
+                              <Text style={styles.vehiclesTitle}>{t('vehicles')}</Text>
+                              {vehiclesLoading ? (
+                                <View style={styles.vehiclesLoadingContainer}>
+                                  <ActivityIndicator size="small" color="#0052cc" />
+                                  <Text style={styles.loadingText}>{t('loadingVehicles')}</Text>
+                                </View>
+                              ) : customer.vehicles && customer.vehicles.length > 0 ? (
+                                customer.vehicles.map(vehicle => (
+                                  <View key={vehicle.id} style={styles.vehicleItem}>
+                                    <MaterialIcons name="directions-car" size={16} color="#0052cc" />
+                                    <Text style={styles.vehicleText}>
+                                      {vehicle.vehicle_display_name} ({vehicle.vehicle_number})
+                                    </Text>
+                                  </View>
+                                ))
+                              ) : (
+                                <Text style={styles.noVehiclesText}>{t('noVehicles')}</Text>
+                              )}
+                            </View>
+                            <View style={styles.customerActionsRow}>
+                              <TouchableOpacity
+                                style={[styles.addButton, styles.addVehicleButton]}
+                                onPress={() => handleAddVehicleForCustomer(customer)}
+                              >
+                                <MaterialIcons name="directions-car" size={16} color="#ffffff" />
+                                <Text style={styles.addButtonText}>{t('addVehicle')}</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={[styles.addButton, styles.nextButton]}
+                                onPress={() => handleNextForCustomer(customer)}
+                              >
+                                <MaterialIcons name="arrow-forward" size={16} color="#ffffff" />
+                                <Text style={styles.addButtonText}>{t('next')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : customerSearchQuery ? (
+                  <View style={styles.emptyContainer}>
+                    <MaterialIcons 
+                      name={isSearchingByVehicle ? "directions-car" : "search-off"} 
+                      size={40} 
+                      color="#b3ccff" 
+                    />
+                    <Text style={styles.emptyText}>
+                      {isSearchingByVehicle ? t('noVehicleResults') : t('noResults')}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             )}
-            
-            <View style={styles.customersContainer}>
-              {customersLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="small" color="#0052cc" />
-                  <Text style={styles.loadingText}>{t('loadingCustomers')}</Text>
-                </View>
-              ) : displayCustomers.length > 0 ? (
-                displayCustomers.map((customer, index) => (
-                  <View 
-                    key={customer.id} 
-                    style={[
-                      styles.customerCardWrapper,
-                      index === displayCustomers.length - 1 && { marginBottom: 0 }
-                    ]}
-                  >
-                    <TouchableOpacity 
-                      style={[
-                        styles.customerCard,
-                        expandedCustomerId === customer.id && styles.expandedCustomerCard
-                      ]}
-                      activeOpacity={0.8}
-                      onPress={() => toggleCustomerExpansion(customer.id)}
-                    >
-                      <View style={styles.customerTopRow}>
-                        <View style={styles.customerAvatar}>
-                          <Text style={styles.avatarText}>{customer.name.charAt(0).toUpperCase()}</Text>
-                        </View>
-                        <View style={styles.customerInfo}>
-                          <Text style={styles.boldPhoneNumber}>{customer.phone}</Text>
-                          <Text style={styles.customerName}>{customer.name}</Text>
-                          {isSearchingByVehicle && customer.vehicles && customer.vehicles.length > 0 && (
-                            <View style={styles.vehicleSearchInfo}>
-                              {customer.vehicles.map(vehicle => (
-                                <Text key={vehicle.id} style={styles.vehicleNumberText}>
-                                  {vehicle.vehicle_number} • {vehicle.vehicle_type_name}
-                                </Text>
-                              ))}
-                            </View>
-                          )}
-                          <Text style={styles.vehicleCount}>{customer.vehicle_count} vehicle{customer.vehicle_count !== 1 ? 's' : ''}</Text>
-                          <Text style={styles.addedTime}>{t('added')} {formatDate(customer.date_added)}</Text>
-                        </View>
-                        <View style={styles.customerActions}>
-                          <TouchableOpacity 
-                            style={styles.actionIcon}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleCall(customer.phone);
-                            }}
-                          >
-                            <MaterialIcons name="phone" size={20} color="#ffffff" />
-                          </TouchableOpacity>
-                          <TouchableOpacity 
-                            style={styles.expandIcon}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              toggleCustomerExpansion(customer.id);
-                            }}
-                          >
-                            <MaterialIcons 
-                              name={expandedCustomerId === customer.id ? "expand-less" : "expand-more"} 
-                              size={24} 
-                              color="#b3ccff" 
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                      
-                      {expandedCustomerId === customer.id && (
-                        <View style={styles.expandedContent}>
-                          <View style={styles.divider} />
-                          <View style={styles.vehiclesSection}>
-                            <Text style={styles.vehiclesTitle}>{t('vehicles')}</Text>
-                            {vehiclesLoading ? (
-                              <View style={styles.vehiclesLoadingContainer}>
-                                <ActivityIndicator size="small" color="#0052cc" />
-                                <Text style={styles.loadingText}>{t('loadingVehicles')}</Text>
-                              </View>
-                            ) : customer.vehicles && customer.vehicles.length > 0 ? (
-                              customer.vehicles.map(vehicle => (
-                                <View key={vehicle.id} style={styles.vehicleItem}>
-                                  <MaterialIcons name="directions-car" size={16} color="#0052cc" />
-                                  <Text style={styles.vehicleText}>
-                                    {vehicle.vehicle_display_name} ({vehicle.vehicle_number})
-                                  </Text>
-                                </View>
-                              ))
-                            ) : (
-                              <Text style={styles.noVehiclesText}>{t('noVehicles')}</Text>
-                            )}
-                          </View>
-                          <View style={styles.customerActionsRow}>
-                            <TouchableOpacity
-                              style={[styles.addButton, styles.addVehicleButton]}
-                              onPress={() => handleAddVehicleForCustomer(customer)}
-                            >
-                              <MaterialIcons name="directions-car" size={16} color="#ffffff" />
-                              <Text style={styles.addButtonText}>{t('addVehicle')}</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={[styles.addButton, styles.nextButton]}
-                              onPress={() => handleNextForCustomer(customer)}
-                            >
-                              <MaterialIcons name="arrow-forward" size={16} color="#ffffff" />
-                              <Text style={styles.addButtonText}>{t('next')}</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                ))
-              ) : customerSearchQuery && !showAddCustomer ? (
-                <View style={styles.emptyContainer}>
-                  <MaterialIcons 
-                    name={isSearchingByVehicle ? "directions-car" : "search-off"} 
-                    size={40} 
-                    color="#b3ccff" 
-                  />
-                  <Text style={styles.emptyText}>
-                    {isSearchingByVehicle ? t('noVehicleResults') : t('noResults')}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
+          </Animated.View>
         )}
 
         <View style={{ height: 80 }} />
@@ -945,613 +1064,3 @@ export default function Home() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5faff',
-  },
-  scrollContainer: {
-    paddingTop: 120,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
-  },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    paddingTop: 50,
-    backgroundColor: '#0052cc',
-    borderBottomWidth: 1,
-    borderBottomColor: '#003087',
-    minHeight: 100,
-  },
-  sidebarToggle: {
-    padding: 8,
-    marginRight: 16,
-  },
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  headerMainInfo: {
-    alignItems: 'flex-end',
-    marginRight: 16,
-  },
-  shopName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'right',
-  },
-  subscriptionStatus: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    marginTop: 4,
-  },
-  trialIndicator: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '600',
-    backgroundColor: '#003087',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  subscriptionIndicator: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '600',
-    backgroundColor: '#003087',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  expiryText: {
-    fontSize: 11,
-    color: '#b3ccff',
-    textAlign: 'right',
-  },
-  notificationIcon: {
-    padding: 6,
-  },
-  section: {
-    marginTop: 24,
-    marginBottom: 28,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 16,
-  },
-  searchContainer: {
-    marginBottom: 16,
-  },
-  searchTypeToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#e6f0fa',
-    borderRadius: 8,
-    padding: 4,
-    marginBottom: 12,
-  },
-  searchTypeButton: {
-    flex: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  activeSearchType: {
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  searchTypeText: {
-    fontSize: 14,
-    color: '#0052cc',
-    fontWeight: '500',
-  },
-  activeSearchTypeText: {
-    color: '#003087',
-    fontWeight: '600',
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#0052cc',
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#000000',
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-  },
-  clearIcon: {
-    padding: 8,
-    backgroundColor: '#e6f0fa',
-    borderRadius: 16,
-  },
-  addCustomerIconButton: {
-    padding: 8,
-    backgroundColor: '#0052cc',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-  },
-  inlineAddCustomerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0052cc',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginTop: 12,
-    alignSelf: 'flex-start',
-  },
-  inlineAddCustomerButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 15,
-    marginLeft: 4,
-  },
-  addCustomerContainer: {
-    marginBottom: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  customersContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-    overflow: 'hidden',
-    minHeight: 100,
-  },
-  customerCardWrapper: {
-    marginBottom: 12,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  customerCard: {
-    backgroundColor: '#ffffff',
-    flexDirection: 'column',
-    padding: 16,
-  },
-  expandedCustomerCard: {
-    minHeight: 200,
-  },
-  customerTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  customerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#0052cc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  avatarText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  customerInfo: {
-    flex: 1,
-    marginRight: 16,
-  },
-  customerName: {
-    fontSize: 12,
-    color: '#000000',
-    fontWeight: '400',
-    marginBottom: 2,
-  },
-  boldPhoneNumber: {
-    fontSize: 15,
-    color: '#000000',
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  vehicleSearchInfo: {
-    marginBottom: 4,
-  },
-  vehicleNumberText: {
-    fontSize: 12,
-    color: '#ffffff',
-    fontWeight: '600',
-    backgroundColor: '#003087',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginBottom: 2,
-  },
-  vehicleCount: {
-    fontSize: 14,
-    color: '#000000',
-    marginBottom: 2,
-  },
-  addedTime: {
-    fontSize: 12,
-    color: '#000000',
-  },
-  customerActions: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#003087',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  expandIcon: {
-    padding: 4,
-  },
-  expandedContent: {
-    marginTop: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#b3ccff',
-    marginBottom: 12,
-  },
-  vehiclesSection: {
-    marginBottom: 16,
-  },
-  vehiclesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 8,
-  },
-  vehicleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-    padding: 8,
-    backgroundColor: '#f8fafc',
-    borderRadius: 6,
-  },
-  vehicleText: {
-    fontSize: 14,
-    color: '#000000',
-    marginLeft: 8,
-  },
-  noVehiclesText: {
-    fontSize: 14,
-    color: '#000000',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 12,
-  },
-  customerActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    flex: 1,
-  },
-  addVehicleButton: {
-    backgroundColor: '#0052cc',
-  },
-  nextButton: {
-    backgroundColor: '#003087',
-  },
-  addButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  vehiclesLoadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  loadingContainer: {
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  loadingText: {
-    marginLeft: 10,
-    color: '#000000',
-  },
-  emptyContainer: {
-    padding: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    marginTop: 10,
-    color: '#000000',
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 82, 204, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    width: '90%',
-    maxHeight: '80%',
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#b3ccff',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    flex: 1,
-  },
-  closeButton: {
-    padding: 4,
-  },
-  selectedCustomerContainer: {
-    flex: 1,
-  },
-  selectedCustomerHeader: {
-    marginBottom: 16,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  backButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  customerFormCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  formHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  customerFormAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#0052cc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  formHeaderInfo: {
-    flex: 1,
-  },
-  formCustomerName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  formCustomerPhone: {
-    fontSize: 16,
-    color: '#000000',
-    fontWeight: '600',
-  },
-  callButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#003087',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  formDivider: {
-    height: 1,
-    backgroundColor: '#b3ccff',
-    marginVertical: 20,
-  },
-  formSection: {
-    marginBottom: 20,
-  },
-  formSectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000000',
-    marginBottom: 16,
-  },
-  formRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  formLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000000',
-    width: 80,
-    marginRight: 16,
-  },
-  formValue: {
-    fontSize: 14,
-    color: '#000000',
-    flex: 1,
-  },
-  vehiclesSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  addVehicleIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#003087',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vehiclesList: {
-    maxHeight: 200,
-  },
-  vehicleFormItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#0052cc',
-  },
-  vehicleFormInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  vehicleFormName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  vehicleFormDetails: {
-    fontSize: 14,
-    color: '#000000',
-  },
-  noVehiclesContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-  },
-  noVehiclesFormText: {
-    fontSize: 16,
-    color: '#000000',
-    marginTop: 12,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  addFirstVehicleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0052cc',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  addFirstVehicleText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 14,
-    marginLeft: 6,
-  },
-  formActions: {
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#b3ccff',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    width: '100%',
-  },
-  addServiceFormButton: {
-    backgroundColor: '#003087',
-  },
-  actionButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 16,
-    marginLeft: 6,
-  },
-  banner: {
-    marginTop: 10,
-  },
-});
