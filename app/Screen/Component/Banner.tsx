@@ -162,6 +162,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F1F5F9',
     paddingVertical: 10,
+    marginTop: 30, // Increased marginTop for spacing
   },
   banner: {
     backgroundColor: '#1D4ED8',

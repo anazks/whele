@@ -24,6 +24,7 @@ import { Dashboard, dashBoardMonthly, getCustomer, getCustomerVehicles, getVehic
 import { ExtractToken } from '../api/Services/TokenExtract';
 import { translations } from '../Languge/Languages';
 import Banner from '../Screen/Component/Banner';
+import SideBar from '../Screen/Component/SideBar';
 import AddVehicle from '../Screen/Owner/AddVehicle';
 import CustomerAdd from '../Screen/Owner/CustomerAdd';
 
@@ -338,7 +339,7 @@ export default function Home() {
         }));
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
     } finally {
       setDashboardLoading(false);
     }
@@ -645,16 +646,17 @@ export default function Home() {
 
   return (
     <View style={styles.container}>
+      {userData && <SideBar userData={userData} />}
       <Animated.View style={[styles.header, {
         opacity: headerOpacity,
         transform: [{ translateY: headerTranslateY }]
       }]}>
+        <TouchableOpacity style={styles.sidebarToggle}>
+          <MaterialIcons name="menu" size={24} color="#ffffff" />
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <View style={styles.headerMainInfo}>
-            <Text style={styles.shopName}>{userData.service_center_name || userData.name || 'LINJU Wheel Service'}</Text>
-          </View>
-          
-          <View style={styles.subscriptionContainer}>
+            {/* <Text style={styles.shopName}>{userData.service_center_name || userData.name || 'LINJU Wheel Service'}</Text> */}
             {userData.is_trial_active ? (
               <View style={styles.subscriptionStatus}>
                 <Text style={styles.trialIndicator}>{t('trialActive')}</Text>
@@ -671,14 +673,10 @@ export default function Home() {
               </View>
             ) : null}
           </View>
+          {/* <TouchableOpacity style={styles.notificationIcon}>
+            <MaterialIcons name="notifications" size={24} color="#ffffff" />
+          </TouchableOpacity> */}
         </View>
-        
-        <TouchableOpacity style={styles.notificationIcon}>
-          <MaterialIcons name="notifications-none" size={24} color="#ffffff" />
-          {upcomingServicesData.length > 0 && (
-            <View style={styles.notificationBadge} />
-          )}
-        </TouchableOpacity>
       </Animated.View>
 
       <ScrollView
@@ -695,7 +693,9 @@ export default function Home() {
           />
         }
       >
-          <Banner/>
+        <View style={styles.banner}>
+          <Banner />
+        </View>
 
         {selectedCustomer ? (
           renderSelectedCustomerForm()
@@ -963,7 +963,6 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     paddingTop: 50,
@@ -972,24 +971,30 @@ const styles = StyleSheet.create({
     borderBottomColor: '#003087',
     minHeight: 100,
   },
+  sidebarToggle: {
+    padding: 8,
+    marginRight: 16,
+  },
   headerContent: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   headerMainInfo: {
-    marginBottom: 8,
+    alignItems: 'flex-end',
+    marginRight: 16,
   },
   shopName: {
     fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
-  },
-  subscriptionContainer: {
-    marginTop: 4,
+    textAlign: 'right',
   },
   subscriptionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    marginTop: 4,
   },
   trialIndicator: {
     fontSize: 12,
@@ -999,7 +1004,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
-    marginRight: 8,
+    marginBottom: 4,
   },
   subscriptionIndicator: {
     fontSize: 12,
@@ -1009,24 +1014,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
-    marginRight: 8,
+    marginBottom: 4,
   },
   expiryText: {
     fontSize: 11,
     color: '#b3ccff',
+    textAlign: 'right',
   },
   notificationIcon: {
     padding: 6,
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ff4d4f',
   },
   section: {
     marginTop: 24,
@@ -1554,5 +1550,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     marginLeft: 6,
+  },
+  banner: {
+    marginTop: 10,
   },
 });

@@ -138,7 +138,7 @@ export default function Login() {
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Enter your email"
+              placeholder="Enter your email or Mobile"
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -178,7 +178,7 @@ export default function Login() {
             onPress={handleForgotPassword}
             accessibilityLabel="Forgot password button"
           >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            {/* <Text style={styles.forgotPasswordText}>Forgot Password?</Text> */}
           </TouchableOpacity>
 
           <TouchableOpacity

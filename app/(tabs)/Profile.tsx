@@ -441,7 +441,7 @@ export default function Profile() {
             <MaterialIcons name="notifications" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>{t('reminderPeriod')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          {/* <TouchableOpacity 
             style={[styles.actionButton, styles.kmReminderButton]}
             onPress={openKmReminderModal}
           >
@@ -454,7 +454,7 @@ export default function Profile() {
                 </Text>
               )}
             </View>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           {role === 'centeradmin' && (
             <TouchableOpacity 
               style={[styles.actionButton, styles.addStaffButton]}

@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import SideBar from '../Screen/Component/SideBar';
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -165,7 +166,8 @@ const AnimatedTabIcon = ({ focused, iconName, label, IconComponent }: AnimatedTa
 
 export default function TabLayout() {
   return (
-    <Tabs
+   <>
+     <Tabs
       screenOptions={({ route }) => {
         const config = tabConfig[route.name as keyof typeof tabConfig];
         
@@ -225,5 +227,6 @@ export default function TabLayout() {
         }} 
       />
     </Tabs>
+   </>
   );
 }

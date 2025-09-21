@@ -1,7 +1,9 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Modal } from 'react-native';
+
 
 import {
   KeyboardAvoidingView,
@@ -32,6 +34,28 @@ const colors = {
 };
 
 export default function Register() {
+      const [hasToken, setHasToken] = useState(false);
+  
+    useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check for token in SecureStore (more secure than AsyncStorage)
+        const token = await AsyncStorage.getItem('accessToken');
+        
+        if (token) {
+          setHasToken(true);
+        } else {
+          setHasToken(false);
+        }
+      } catch (error) {
+        setHasToken(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
   const [formData, setFormData] = useState({
     name: '',
     address: '',
