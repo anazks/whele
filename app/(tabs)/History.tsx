@@ -1,6 +1,7 @@
+
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native';
-import React, { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,9 +16,27 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import { getServices } from '../api/Services/management';
+
+// Define Service interface for type safety
+interface Service {
+  id: string;
+  vehicle_number: string;
+  customer_name: string;
+  customer_phone?: string;
+  vehicle_model?: string;
+  service_type_display: string;
+  service_date?: string;
+  created_at: string;
+  price?: string;
+  date_of_entry?: string;
+  performed_by_name?: string;
+  service_center_name?: string;
+  description?: string;
+  next_service_due_date?: string;
+}
 
 // Utility function to generate a random future date
 const generateRandomFutureDate = (minMonths = 3, maxMonths = 12) => {
@@ -29,7 +48,7 @@ const generateRandomFutureDate = (minMonths = 3, maxMonths = 12) => {
 };
 
 // Function to generate next service date based on service date if available
-const generateNextServiceDate = (serviceDate = null) => {
+const generateNextServiceDate = (serviceDate: string | null = null) => {
   if (serviceDate) {
     try {
       const service = new Date(serviceDate);
@@ -37,41 +56,35 @@ const generateNextServiceDate = (serviceDate = null) => {
       service.setMonth(service.getMonth() + randomMonths);
       return service.toISOString().split('T')[0];
     } catch (error) {
-      console.log('Error parsing service date, using random future date');
+      console.log('Error parsing service date, using random future date:', error);
     }
   }
   return generateRandomFutureDate();
 };
 
+// Utility function to handle service type display
+const getServiceTypeDisplay = (serviceType: string | undefined) => {
+  return serviceType?.toLowerCase() === 'other' ? 'Alignment and Balancing' : serviceType || 'Service';
+};
+
 export default function History() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedService, setSelectedService] = useState(null);
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const isFocused = useIsFocused();
 
-  useEffect(() => {
-    fetchServices();
-  }, []);
-
-  // Add this useEffect to handle screen focus
-  useEffect(() => {
-    if (isFocused) {
-      fetchServices();
-    }
-  }, [isFocused]);
-
-  const fetchServices = async () => {
+  const fetchServices = async (retries = 3) => {
     try {
       setLoading(true);
+      setRefreshing(false);
       const response = await getServices();
       console.log('Fetched services:', response);
-      
+
       // Handle different response structures
-      let servicesData = [];
+      let servicesData: Service[] = [];
       if (Array.isArray(response)) {
         servicesData = response;
       } else if (response && response.data && Array.isArray(response.data)) {
@@ -80,17 +93,24 @@ export default function History() {
         servicesData = response.results;
       } else if (response && response.services && Array.isArray(response.services)) {
         servicesData = response.services;
+      } else {
+        throw new Error('Invalid response structure');
       }
-      
+
       // Process services data and always generate next_service_due_date
       servicesData = servicesData.map(service => ({
         ...service,
-        next_service_due_date: generateNextServiceDate(service.service_date)
+        next_service_due_date: generateNextServiceDate(service.service_date),
       }));
-      
+
       setServices(servicesData);
-    } catch (error) {
-  
+    } catch (error: any) {
+      if (retries > 0) {
+        console.log(`Retrying fetchServices... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return fetchServices(retries - 1);
+      }
+      console.error('Error fetching services:', error);
       Alert.alert('Error', 'Failed to fetch services: ' + error.message);
     } finally {
       setLoading(false);
@@ -98,18 +118,25 @@ export default function History() {
     }
   };
 
+  // Fetch services on mount and when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      fetchServices();
+      return () => {};
+    }, []),
+  );
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchServices();
   };
 
-  const openModal = (service) => {
-    // Ensure the selected service has a next_service_due_date
+  const openModal = (service: Service) => {
+    console.log('Opening modal with service:', service);
     const processedService = {
       ...service,
-      next_service_due_date: service.next_service_due_date || generateNextServiceDate(service.service_date)
+      next_service_due_date: service.next_service_due_date || generateNextServiceDate(service.service_date),
     };
-    
     setSelectedService(processedService);
     setIsModalVisible(true);
     fadeAnim.setValue(0);
@@ -133,69 +160,63 @@ export default function History() {
   // Filter and sort services
   const filteredServices = services.filter(service => {
     if (!service) return false;
-    
+
     const vehicleNumber = service.vehicle_number || '';
     const customerName = service.customer_name || '';
     const searchTerm = searchQuery.toLowerCase();
-    
-    const matchesSearch = vehicleNumber.toLowerCase().includes(searchTerm) || 
-                         customerName.toLowerCase().includes(searchTerm);
+
+    const matchesSearch =
+      vehicleNumber.toLowerCase().includes(searchTerm) ||
+      customerName.toLowerCase().includes(searchTerm);
     return matchesSearch;
   });
 
-  const sortedServices = [...filteredServices].sort((a, b) => 
-    new Date(b.service_date || b.created_at) - new Date(a.service_date || a.created_at)
+  const sortedServices = [...filteredServices].sort(
+    (a, b) => new Date(b.service_date || b.created_at).getTime() - new Date(a.service_date || a.created_at).getTime(),
   );
 
   const handleShare = async () => {
     try {
       if (!selectedService) return;
-      
-      const nextServiceDate = selectedService.next_service_due_date 
+
+      const nextServiceDate = selectedService.next_service_due_date
         ? new Date(selectedService.next_service_due_date).toLocaleDateString()
         : new Date(generateNextServiceDate(selectedService.service_date)).toLocaleDateString();
-      
-      const serviceDate = selectedService.service_date 
+
+      const serviceDate = selectedService.service_date
         ? new Date(selectedService.service_date).toLocaleDateString()
         : 'N/A';
-      
+
       const message = `🚗 Service Details:
 ━━━━━━━━━━━━━━━━━━
 🏷️ Vehicle: ${selectedService.vehicle_number || 'N/A'}
 👤 Customer: ${selectedService.customer_name || 'N/A'}
-🔧 Service: ${selectedService.service_type_display || 'N/A'}
+🔧 Service: ${getServiceTypeDisplay(selectedService.service_type_display)}
 📅 Date: ${serviceDate}
 💰 Amount: ₹${selectedService.price || '0'}
 ✅ Status: Completed
 📆 Next Service Due: ${nextServiceDate}
 ━━━━━━━━━━━━━━━━━━
 Thank you for choosing our service! 🙏`;
-      
-      // Check if customer phone exists
+
       const phoneNumber = selectedService.customer_phone;
       if (!phoneNumber) {
         Alert.alert('Error', 'Customer phone number not available');
         return;
       }
-      
-      // Correct WhatsApp URL format
+
       const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(message)}&phone=+91${phoneNumber}`;
-      
-      // Try to open WhatsApp
+
       const canOpen = await Linking.canOpenURL(whatsappUrl);
-      
+
       if (canOpen) {
         await Linking.openURL(whatsappUrl);
       } else {
-        // If WhatsApp is not installed, show an alert
         Alert.alert(
           'WhatsApp Not Installed',
           'Would you like to share via another method?',
           [
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            },
+            { text: 'Cancel', style: 'cancel' },
             {
               text: 'Share via SMS',
               onPress: () => {
@@ -203,36 +224,30 @@ Thank you for choosing our service! 🙏`;
                 Linking.openURL(smsUrl).catch(() => {
                   Alert.alert('Error', 'Unable to open SMS app');
                 });
-              }
+              },
             },
             {
               text: 'Copy to Clipboard',
               onPress: () => {
-                // Note: In React Native, you'd typically use @react-native-clipboard/clipboard
-                // For now, we'll show the message in an alert
-                Alert.alert('Service Details', message, [
-                  { text: 'OK', style: 'default' }
-                ], { cancelable: true });
-              }
-            }
-          ]
+                Alert.alert('Service Details', message, [{ text: 'OK', style: 'default' }], {
+                  cancelable: true,
+                });
+              },
+            },
+          ],
         );
       }
     } catch (error) {
-
+      console.error('Error sharing service details:', error);
       Alert.alert('Error', 'Failed to share service details');
     }
   };
 
-  const renderServiceItem = ({ item }) => {
+  const renderServiceItem = ({ item }: { item: Service }) => {
     if (!item) return null;
-    
+
     return (
-      <TouchableOpacity 
-        style={styles.serviceCard}
-        onPress={() => openModal(item)}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity style={styles.serviceCard} onPress={() => openModal(item)} activeOpacity={0.8}>
         <View style={styles.serviceHeader}>
           <View style={styles.vehicleInfo}>
             <Text style={styles.customerName} numberOfLines={1}>
@@ -249,15 +264,13 @@ Thank you for choosing our service! 🙏`;
               </View>
             )}
           </View>
-          <Text style={styles.completedStatus}>
-            Completed
-          </Text>
+          <Text style={styles.completedStatus}>Completed</Text>
         </View>
-        
+
         <Text style={styles.serviceType} numberOfLines={2}>
-          {item.service_type_display || 'Service'}
+          {getServiceTypeDisplay(item.service_type_display)}
         </Text>
-        
+
         <View style={styles.serviceFooter}>
           <Text style={styles.dateText}>
             {item.service_date ? new Date(item.service_date).toLocaleDateString() : 'N/A'}
@@ -303,7 +316,7 @@ Thank you for choosing our service! 🙏`;
       <FlatList
         data={sortedServices}
         renderItem={renderServiceItem}
-        keyExtractor={(item) => item.id ? item.id.toString() : Math.random().toString()}
+        keyExtractor={item => (item.id ? item.id.toString() : Math.random().toString())}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -320,10 +333,7 @@ Thank you for choosing our service! 🙏`;
               {searchQuery ? 'No services found matching your search' : 'No services found'}
             </Text>
             {searchQuery && (
-              <TouchableOpacity 
-                style={styles.clearSearchButton}
-                onPress={() => setSearchQuery('')}
-              >
+              <TouchableOpacity style={styles.clearSearchButton} onPress={() => setSearchQuery('')}>
                 <Text style={styles.clearSearchText}>Clear Search</Text>
               </TouchableOpacity>
             )}
@@ -337,34 +347,27 @@ Thank you for choosing our service! 🙏`;
       />
 
       {/* Service Details Modal */}
-      <Modal
-        visible={isModalVisible}
-        transparent={true}
-        onRequestClose={closeModal}
-        animationType="none"
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1}
-          onPress={closeModal}
-        >
-          <Animated.View 
+      <Modal visible={isModalVisible} transparent={true} onRequestClose={closeModal} animationType="none">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={closeModal}>
+          <Animated.View
             style={[
-              styles.modalContainer, 
-              { 
+              styles.modalContainer,
+              {
                 opacity: fadeAnim,
-                transform: [{
-                  scale: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.9, 1]
-                  })
-                }]
-              }
+                transform: [
+                  {
+                    scale: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.9, 1],
+                    }),
+                  },
+                ],
+              },
             ]}
           >
             <TouchableOpacity activeOpacity={1}>
               <View style={styles.modalContent}>
-                {selectedService && (
+                {selectedService ? (
                   <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Service Details</Text>
@@ -372,79 +375,60 @@ Thank you for choosing our service! 🙏`;
                         <MaterialIcons name="close" size={22} color="#666" />
                       </TouchableOpacity>
                     </View>
-                    
-                    <DetailRow 
-                      label="Vehicle Number:" 
-                      value={selectedService.vehicle_number} 
+                    <DetailRow label="Vehicle Number:" value={selectedService.vehicle_number} />
+                    <DetailRow label="Customer Name:" value={selectedService.customer_name} />
+                    <DetailRow label="Phone:" value={selectedService.customer_phone} />
+                    <DetailRow label="Vehicle Model:" value={selectedService.vehicle_model} />
+                    <DetailRow
+                      label="Service Type:"
+                      value={getServiceTypeDisplay(selectedService.service_type_display)}
                     />
-                    <DetailRow 
-                      label="Customer Name:" 
-                      value={selectedService.customer_name} 
+                    <DetailRow
+                      label="Service Date:"
+                      value={
+                        selectedService.service_date
+                          ? new Date(selectedService.service_date).toLocaleDateString()
+                          : 'N/A'
+                      }
                     />
-                    <DetailRow 
-                      label="Phone:" 
-                      value={selectedService.customer_phone} 
+                    <DetailRow
+                      label="Date of Entry:"
+                      value={
+                        selectedService.date_of_entry
+                          ? new Date(selectedService.date_of_entry).toLocaleDateString()
+                          : 'N/A'
+                      }
                     />
-                    <DetailRow 
-                      label="Vehicle Model:" 
-                      value={selectedService.vehicle_model} 
+                    <DetailRow label="Technician:" value={selectedService.performed_by_name} />
+                    <DetailRow label="Service Center:" value={selectedService.service_center_name} />
+                    <DetailRow label="Description:" value={selectedService.description} />
+                    <DetailRow
+                      label="Next Service Due:"
+                      value={
+                        selectedService.next_service_due_date
+                          ? new Date(selectedService.next_service_due_date).toLocaleDateString()
+                          : new Date(
+                              generateNextServiceDate(selectedService.service_date),
+                            ).toLocaleDateString()
+                      }
                     />
-                    <DetailRow 
-                      label="Service Type:" 
-                      value={selectedService.service_type_display} 
-                    />
-                    <DetailRow 
-                      label="Service Date:" 
-                      value={selectedService.service_date ? new Date(selectedService.service_date).toLocaleDateString() : 'N/A'} 
-                    />
-                    <DetailRow 
-                      label="Date of Entry:" 
-                      value={selectedService.date_of_entry ? new Date(selectedService.date_of_entry).toLocaleDateString() : 'N/A'} 
-                    />
-                    <DetailRow 
-                      label="Technician:" 
-                      value={selectedService.performed_by_name} 
-                    />
-                    <DetailRow 
-                      label="Service Center:" 
-                      value={selectedService.service_center_name} 
-                    />
-                    
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Amount:</Text>
                       <Text style={[styles.detailValue, styles.amountValue]}>
                         ₹{selectedService.price || '0'}
                       </Text>
                     </View>
-                    
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Status:</Text>
-                      <Text style={styles.completedStatus}>
-                        Completed
-                      </Text>
+                      <Text style={styles.completedStatus}>Completed</Text>
                     </View>
-                    
-                    <DetailRow 
-                      label="Description:" 
-                      value={selectedService.description} 
-                    />
-                    <DetailRow 
-                      label="Next Service Due:" 
-                      value={selectedService.next_service_due_date 
-                        ? new Date(selectedService.next_service_due_date).toLocaleDateString() 
-                        : new Date(generateNextServiceDate(selectedService.service_date)).toLocaleDateString()
-                      } 
-                    />
-                    
-                    <TouchableOpacity 
-                      style={styles.shareButton}
-                      onPress={handleShare}
-                      activeOpacity={0.8}
-                    >
+                    <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
                       <Ionicons name="logo-whatsapp" size={18} color="#fff" />
                       <Text style={styles.shareButtonText}>Share via WhatsApp</Text>
                     </TouchableOpacity>
                   </ScrollView>
+                ) : (
+                  <Text style={styles.errorText}>No service selected</Text>
                 )}
               </View>
             </TouchableOpacity>
@@ -455,7 +439,7 @@ Thank you for choosing our service! 🙏`;
   );
 }
 
-const DetailRow = ({ label, value }) => (
+const DetailRow = ({ label, value }: { label: string; value: string | undefined }) => (
   <View style={styles.detailRow}>
     <Text style={styles.detailLabel}>{label}</Text>
     <Text style={styles.detailValue}>{value || 'N/A'}</Text>
@@ -663,6 +647,12 @@ const styles = StyleSheet.create({
   amountValue: {
     fontWeight: '600',
     color: '#2e7d32',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ef4444',
+    textAlign: 'center',
+    marginTop: 20,
   },
   shareButton: {
     flexDirection: 'row',

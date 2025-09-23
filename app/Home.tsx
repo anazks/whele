@@ -175,7 +175,7 @@ export default function GetStartedScreen() {
       </View>
     </SafeAreaView>
   );
-}
+} 
 
 const styles = StyleSheet.create({
   container: {

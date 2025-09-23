@@ -4,7 +4,9 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,7 +18,64 @@ import { addCustomer } from '../../api/Services/management';
 import AddVehicle from './AddVehicle';
 
 const FormStyles = StyleSheet.create({
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#ffffff',
+    width: '90%',
+    maxWidth: 500,
+    height: '80%',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: '#f8fafc',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    flex: 1,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonPressed: {
+    backgroundColor: '#cbd5e1',
+  },
+
   container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  keyboardAvoidingContainer: {
     flex: 1,
   },
   progressContainer: {
@@ -37,6 +96,7 @@ const FormStyles = StyleSheet.create({
   stepCircle: {
     width: 28,
     height: 28,
+    borderRadius: 14,
     backgroundColor: '#e5e7eb',
     alignItems: 'center',
     justifyContent: 'center',
@@ -54,11 +114,12 @@ const FormStyles = StyleSheet.create({
 
   formContainer: {
     flex: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 8,
   },
   headerSection: {
-    marginBottom: 12,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   formTitle: {
     fontSize: 18,
@@ -71,93 +132,247 @@ const FormStyles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     textAlign: 'left',
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
   inputSection: {
-    padding: 16,
-    marginBottom: 16,
+    paddingHorizontal: 4,
+    paddingBottom: 20,
+    flex: 1,
   },
-  formGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  formGroup: { marginBottom: 24 },
+  label: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: '#374151', 
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
   inputContainer: { position: 'relative' },
   input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    fontSize: 15,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingRight: 50,
+    fontSize: 16,
     color: '#1f2937',
     backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  inputFocused: { borderColor: '#3b82f6', backgroundColor: '#f8faff' },
-  inputError: { borderColor: '#ef4444', backgroundColor: '#fef2f2' },
-  inputIcon: { position: 'absolute', right: 12, top: 14 },
-  errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
+  inputFocused: { 
+    borderColor: '#3b82f6', 
+    backgroundColor: '#f8faff',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputError: { 
+    borderColor: '#ef4444', 
+    backgroundColor: '#fef2f2',
+    shadowColor: '#ef4444',
+    shadowOpacity: 0.1,
+  },
+  inputIcon: { 
+    position: 'absolute', 
+    right: 16, 
+    top: 18,
+    zIndex: 1,
+  },
+  errorText: { 
+    color: '#ef4444', 
+    fontSize: 13, 
+    marginTop: 6,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
 
   buttonContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#ffffff',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   nextButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#3b82f6',
-    paddingVertical: 14,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#3b82f6',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  nextButtonDisabled: { backgroundColor: '#9ca3af' },
-  nextButtonText: { color: '#fff', fontSize: 15, fontWeight: '600', marginLeft: 8 },
+  nextButtonDisabled: { 
+    backgroundColor: '#9ca3af',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  nextButtonText: { 
+    color: '#fff', 
+    fontSize: 16, 
+    fontWeight: '600', 
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
 
   successContainer: {
     backgroundColor: '#f0fdf4',
     borderWidth: 1,
     borderColor: '#bbf7d0',
-    padding: 16,
+    borderRadius: 12,
+    padding: 20,
+    margin: 4,
     marginBottom: 16,
   },
   successIcon: {
     alignSelf: 'center',
-    marginBottom: 12,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    marginBottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#10b981',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  successTitle: { fontSize: 16, fontWeight: '700', color: '#065f46', textAlign: 'center', marginBottom: 8 },
-  summaryCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb', padding: 12, marginTop: 12 },
-  summaryRow: { flexDirection: 'row', marginBottom: 6 },
-  summaryLabel: { fontSize: 13, fontWeight: '600', color: '#6b7280', width: 70 },
-  summaryValue: { fontSize: 13, color: '#1f2937', flex: 1 },
+  successTitle: { 
+    fontSize: 18, 
+    fontWeight: '700', 
+    color: '#065f46', 
+    textAlign: 'center', 
+    marginBottom: 12,
+    letterSpacing: 0.3,
+  },
+  summaryCard: { 
+    backgroundColor: '#fff', 
+    borderWidth: 1, 
+    borderColor: '#e5e7eb', 
+    borderRadius: 8,
+    padding: 16, 
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  summaryRow: { 
+    flexDirection: 'row', 
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  summaryLabel: { 
+    fontSize: 14, 
+    fontWeight: '600', 
+    color: '#6b7280', 
+    width: 80,
+    letterSpacing: 0.2,
+  },
+  summaryValue: { 
+    fontSize: 14, 
+    color: '#1f2937', 
+    flex: 1,
+    fontWeight: '500',
+  },
 
   addVehicleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#10b981',
-    paddingVertical: 12,
-    marginTop: 14,
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 18,
+    shadowColor: '#10b981',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  addVehicleButtonText: { color: '#fff', fontWeight: '600', fontSize: 15, marginLeft: 8 },
+  addVehicleButtonText: { 
+    color: '#fff', 
+    fontWeight: '600', 
+    fontSize: 15, 
+    marginLeft: 8,
+    letterSpacing: 0.3,
+  },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', width: '95%', maxHeight: '85%' },
-  modalHeader: {
+  vehicleModalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  vehicleModalContent: { 
+    backgroundColor: '#fff', 
+    width: '95%', 
+    maxHeight: '85%',
+    borderRadius: 16,
+  },
+  vehicleModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 14,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
     backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: '#1e293b', flex: 1 },
-  closeButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e5e7eb' },
+  vehicleModalTitle: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: '#1e293b', 
+    flex: 1 
+  },
+  vehicleCloseButton: { 
+    width: 28, 
+    height: 28, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#e5e7eb',
+    borderRadius: 14,
+  },
 });
 
-export default function CustomerAdd({ prefilledPhone = '' }) {
+export default function CustomerAdd({ 
+  visible = false, 
+  onClose, 
+  prefilledPhone = '' 
+}) {
   const [currentLanguage, setCurrentLanguage] = useState('english');
   const [customerForm, setCustomerForm] = useState({ phone: '', name: '' });
   const [errors, setErrors] = useState({});
@@ -166,6 +381,7 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
   const [focusedField, setFocusedField] = useState(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [closeButtonPressed, setCloseButtonPressed] = useState(false);
 
   const translations = {
     english: {
@@ -178,7 +394,7 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
       enterCustomerName: 'Enter customer full name',
       phoneNumber: 'Phone Number *',
       enterPhoneNumber: 'Enter 10-digit phone number',
-      nextButton: 'Next',
+      nextButton: 'Add Customer',
       adding: 'Saving...',
       customerAdded: 'Customer Added Successfully!',
       failedAddCustomer: 'Failed to add customer. Please try again.',
@@ -200,8 +416,14 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
   ];
 
   useEffect(() => {
-    setCustomerForm((form) => ({ ...form, phone: prefilledPhone || '' }));
-  }, [prefilledPhone]);
+    if (visible) {
+      setCustomerForm({ phone: prefilledPhone || '', name: '' });
+      setErrors({});
+      setSavedCustomer(null);
+      setCurrentStep(1);
+      setFocusedField(null);
+    }
+  }, [visible, prefilledPhone]);
 
   useEffect(() => {
     (async () => {
@@ -259,6 +481,7 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
   const handleVehicleAdded = () => {
     setShowAddVehicleModal(false);
     setCurrentStep(3);
+    onClose?.();
     router.push({
       pathname: '/Screen/Owner/AddService',
       params: {
@@ -269,105 +492,83 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
     });
   };
 
-  const renderProgressBar = () => (
-    <View style={FormStyles.progressContainer}>
-      {/* <View style={FormStyles.progressBar}>
-        {steps.map((step, index) => (
-          <React.Fragment key={step.number}>
-            <View style={FormStyles.progressStep}>
-              <View style={[
-                FormStyles.stepCircle,
-                currentStep === step.number && FormStyles.stepCircleActive,
-                currentStep > step.number && FormStyles.stepCircleCompleted,
-              ]}>
-                {currentStep > step.number ? (
-                  <MaterialIcons name="check" size={18} color="#ffffff" />
-                ) : (
-                  <Text style={[
-                    FormStyles.stepNumber,
-                    (currentStep === step.number || currentStep > step.number) && FormStyles.stepNumberActive,
-                  ]}>
-                    {step.number}
-                  </Text>
-                )}
-              </View>
-              <Text style={[
-                FormStyles.stepText,
-                currentStep === step.number && FormStyles.stepTextActive,
-                currentStep > step.number && FormStyles.stepTextCompleted,
-              ]}>
-                {step.title}
-              </Text>
-            </View>
-            {index < steps.length - 1 && (
-              <View style={[
-                FormStyles.progressLine,
-                currentStep > step.number && FormStyles.progressLineCompleted,
-              ]} />
-            )}
-          </React.Fragment>
-        ))}
-      </View> */}
-    </View>
-  );
+  const handleClose = () => {
+    setSavedCustomer(null);
+    setCustomerForm({ phone: '', name: '' });
+    setErrors({});
+    setCurrentStep(1);
+    onClose?.();
+  };
 
   const renderCustomerForm = () => (
-    <ScrollView style={FormStyles.formContainer} showsVerticalScrollIndicator={false}>
-      <View style={FormStyles.headerSection}>
-        <Text style={FormStyles.formTitle}>{t('addNewCustomer')}</Text>
-        <Text style={FormStyles.formSubtitle}>{t('customerSubtitle')}</Text>
-      </View>
-      <View style={FormStyles.inputSection}>
-        <View style={FormStyles.formGroup}>
-          <Text style={FormStyles.label}>{t('phoneNumber')}</Text>
-          <View style={FormStyles.inputContainer}>
-            <TextInput
-              style={[
-                FormStyles.input,
-                focusedField === 'phone' && FormStyles.inputFocused,
-                errors.phone && FormStyles.inputError
-              ]}
-              placeholder={t('enterPhoneNumber')}
-              placeholderTextColor="#9ca3af"
-              keyboardType="phone-pad"
-              value={customerForm.phone}
-              onChangeText={(text) => handleCustomerChange('phone', text.replace(/\D/g, ''))}
-              onFocus={() => setFocusedField('phone')}
-              onBlur={() => setFocusedField(null)}
-              maxLength={15}
-            />
-            <View style={FormStyles.inputIcon}>
-              <MaterialIcons name="phone" size={20} color={focusedField === 'phone' ? '#3b82f6' : '#9ca3af'} />
-            </View>
-          </View>
-          {errors.phone ? <Text style={FormStyles.errorText}>{errors.phone}</Text> : null}
+    <KeyboardAvoidingView 
+      style={FormStyles.keyboardAvoidingContainer}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView 
+        style={FormStyles.formContainer} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={FormStyles.headerSection}>
+          <Text style={FormStyles.formSubtitle}>{t('customerSubtitle')}</Text>
         </View>
-        <View style={FormStyles.formGroup}>
-          <Text style={FormStyles.label}>{t('fullName')}</Text>
-          <View style={FormStyles.inputContainer}>
-            <TextInput
-              style={[
-                FormStyles.input,
-                focusedField === 'name' && FormStyles.inputFocused,
-                errors.name && FormStyles.inputError
-              ]}
-              placeholder={t('enterCustomerName')}
-              placeholderTextColor="#9ca3af"
-              value={customerForm.name}
-              onChangeText={(text) => handleCustomerChange('name', text)}
-              onFocus={() => setFocusedField('name')}
-              onBlur={() => setFocusedField(null)}
-              maxLength={100}
-              autoCapitalize="words"
-            />
-            <View style={FormStyles.inputIcon}>
-              <MaterialIcons name="person" size={20} color={focusedField === 'name' ? '#3b82f6' : '#9ca3af'} />
+        <View style={FormStyles.inputSection}>
+          <View style={FormStyles.formGroup}>
+            <Text style={FormStyles.label}>{t('phoneNumber')}</Text>
+            <View style={FormStyles.inputContainer}>
+              <TextInput
+                style={[
+                  FormStyles.input,
+                  focusedField === 'phone' && FormStyles.inputFocused,
+                  errors.phone && FormStyles.inputError
+                ]}
+                placeholder={t('enterPhoneNumber')}
+                placeholderTextColor="#9ca3af"
+                keyboardType="phone-pad"
+                value={customerForm.phone}
+                onChangeText={(text) => handleCustomerChange('phone', text.replace(/\D/g, ''))}
+                onFocus={() => setFocusedField('phone')}
+                onBlur={() => setFocusedField(null)}
+                maxLength={15}
+                returnKeyType="next"
+              />
+              <View style={FormStyles.inputIcon}>
+                <MaterialIcons name="phone" size={22} color={focusedField === 'phone' ? '#3b82f6' : '#9ca3af'} />
+              </View>
             </View>
+            {errors.phone ? <Text style={FormStyles.errorText}>{errors.phone}</Text> : null}
           </View>
-          {errors.name ? <Text style={FormStyles.errorText}>{errors.name}</Text> : null}
+          <View style={FormStyles.formGroup}>
+            <Text style={FormStyles.label}>{t('fullName')}</Text>
+            <View style={FormStyles.inputContainer}>
+              <TextInput
+                style={[
+                  FormStyles.input,
+                  focusedField === 'name' && FormStyles.inputFocused,
+                  errors.name && FormStyles.inputError
+                ]}
+                placeholder={t('enterCustomerName')}
+                placeholderTextColor="#9ca3af"
+                value={customerForm.name}
+                onChangeText={(text) => handleCustomerChange('name', text)}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                maxLength={100}
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={handleCustomerSubmit}
+              />
+              <View style={FormStyles.inputIcon}>
+                <MaterialIcons name="person" size={22} color={focusedField === 'name' ? '#3b82f6' : '#9ca3af'} />
+              </View>
+            </View>
+            {errors.name ? <Text style={FormStyles.errorText}>{errors.name}</Text> : null}
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 
   const renderSuccessState = () => (
@@ -399,37 +600,65 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
   );
 
   return (
-    <View style={FormStyles.container}>
-      {renderProgressBar()}
-      {!savedCustomer ? renderCustomerForm() : renderSuccessState()}
-      {!savedCustomer && (
-        <View style={FormStyles.buttonContainer}>
-          <TouchableOpacity
-            style={[FormStyles.nextButton, loading && FormStyles.nextButtonDisabled]}
-            onPress={handleCustomerSubmit}
-            disabled={loading}
-          >
-            <MaterialIcons name={loading ? "hourglass-empty" : "arrow-forward"} size={20} color="#ffffff" />
-            <Text style={FormStyles.nextButtonText}>
-              {loading ? t('adding') : t('nextButton')}
-            </Text>
-          </TouchableOpacity>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
+      <View style={FormStyles.modalOverlay}>
+        <View style={FormStyles.modalContainer}>
+          <View style={FormStyles.modalHeader}>
+            <Text style={FormStyles.modalTitle}>{t('addNewCustomer')}</Text>
+            <TouchableOpacity
+              style={[
+                FormStyles.closeButton,
+                closeButtonPressed && FormStyles.closeButtonPressed
+              ]}
+              onPress={handleClose}
+              onPressIn={() => setCloseButtonPressed(true)}
+              onPressOut={() => setCloseButtonPressed(false)}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="close" size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={FormStyles.container}>
+            {!savedCustomer ? renderCustomerForm() : renderSuccessState()}
+            {!savedCustomer && (
+              <View style={FormStyles.buttonContainer}>
+                <TouchableOpacity
+                  style={[FormStyles.nextButton, loading && FormStyles.nextButtonDisabled]}
+                  onPress={handleCustomerSubmit}
+                  disabled={loading}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name={loading ? "hourglass-empty" : "person-add"} size={22} color="#ffffff" />
+                  <Text style={FormStyles.nextButtonText}>
+                    {loading ? t('adding') : t('nextButton')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
-      )}
+      </View>
+
       <Modal
         visible={showAddVehicleModal}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowAddVehicleModal(false)}
       >
-        <View style={FormStyles.modalOverlay}>
-          <View style={FormStyles.modalContent}>
-            <View style={FormStyles.modalHeader}>
-              <Text style={FormStyles.modalTitle}>
+        <View style={FormStyles.vehicleModalOverlay}>
+          <View style={FormStyles.vehicleModalContent}>
+            <View style={FormStyles.vehicleModalHeader}>
+              <Text style={FormStyles.vehicleModalTitle}>
                 {t('addVehicle')} - {savedCustomer?.name}
               </Text>
               <TouchableOpacity
-                style={FormStyles.closeButton}
+                style={FormStyles.vehicleCloseButton}
                 onPress={() => setShowAddVehicleModal(false)}
               >
                 <MaterialIcons name="close" size={20} color="#64748b" />
@@ -443,6 +672,6 @@ export default function CustomerAdd({ prefilledPhone = '' }) {
           </View>
         </View>
       </Modal>
-    </View>
+    </Modal>
   );
 }
